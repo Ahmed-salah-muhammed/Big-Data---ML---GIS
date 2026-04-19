@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Road Real-Time Prediction System</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet CSS & JS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+
+    <style>
+      /* Fix Leaflet tiles z-index with Tailwind */
+      .leaflet-container {
+        z-index: 1;
+      }
+      .leaflet-pane {
+        z-index: 1;
+      }
+      .leaflet-top,
+      .leaflet-bottom {
+        z-index: 2;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-950 text-gray-100 font-sans">
+    <!-- Header -->
+    <header
+      class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex justify-between items-center shadow-lg z-50 relative"
+    >
+      <h1
+        class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-transparent"
+      >
+        🚀 Road Real-Time Prediction System
+      </h1>
+      <div class="flex items-center gap-4 text-sm">
+        <div id="apiStatus" class="flex items-center gap-2">
+          <div
+            id="statusDot"
+            class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"
+          ></div>
+          <span id="statusText" class="text-gray-400">Checking API...</span>
+        </div>
+        <span id="clock" class="text-gray-500 font-mono"></span>
+      </div>
+    </header>
+
+    <!-- Main Layout -->
+    <div class="flex h-[calc(100vh-52px)]">
+      <!-- Sidebar -->
+      <aside
+        class="w-[380px] bg-gray-900 border-r border-gray-800 overflow-y-auto p-5 space-y-5 flex-shrink-0"
+      >
+        <!-- Input Section -->
+        <div
+          class="bg-gray-800/50 p-4 rounded-xl border border-gray-700 space-y-4"
+        >
+          <h2 class="text-cyan-400 font-semibold flex items-center gap-2">
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+              ></path>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+              ></path>
+            </svg>
+            Location & Conditions
+          </h2>
+
+          <!-- Optional Street Name -->
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block"
+              >Street Name (Optional Display)</label
+            >
+            <input
+              type="text"
+              id="streetName"
+              placeholder="e.g., Salah Salem, I-95"
+              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Latitude</label>
+              <input
+                type="number"
+                id="latitude"
+                value="34.05"
+                step="0.01"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Longitude</label>
+              <input
+                type="number"
+                id="longitude"
+                value="-118.24"
+                step="0.01"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+
+          <!-- Road Type (NEW) -->
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block"
+              >Road Type & Width</label
+            >
+            <select
+              id="road_type"
+              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+            >
+              <option value="Highway">
+                Highway (Width: 32-36m, Speed: 65-75mph)
+              </option>
+              <option value="Local" selected>
+                Local Road (Width: 21-24m, Speed: 35-45mph)
+              </option>
+              <option value="Internal">
+                Internal (Width: 16-21m, Speed: 20-30mph)
+              </option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block"
+                >Temperature (°F)</label
+              >
+              <input
+                type="number"
+                id="temperature"
+                value="72"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block"
+                >Humidity (%)</label
+              >
+              <input
+                type="number"
+                id="humidity"
+                value="45"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block"
+                >Visibility (mi)</label
+              >
+              <input
+                type="number"
+                id="visibility"
+                value="10"
+                step="0.1"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block"
+                >Wind Speed (mph)</label
+              >
+              <input
+                type="number"
+                id="wind_speed"
+                value="8"
+                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block"
+              >Hour of Day:
+              <span id="hourDisplay" class="text-cyan-400 font-bold"
+                >12:00</span
+              ></label
+            >
+            <input
+              type="range"
+              id="hour"
+              min="0"
+              max="23"
+              value="12"
+              class="w-full accent-cyan-500"
+            />
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-400 mb-1 block">Weather</label>
+            <select
+              id="weather_condition"
+              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
+            >
+              <option value="Clear">☀️ Clear</option>
+              <option value="Cloudy">☁️ Cloudy</option>
+              <option value="Rain">🌧️ Rain</option>
+              <option value="Snow">❄️ Snow</option>
+              <option value="Fog">🌫️ Fog</option>
+            </select>
+          </div>
+
+          <button
+            onclick="makePrediction()"
+            id="predictBtn"
+            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:opacity-90 transition shadow-lg"
+          >
+            🔮 Get Prediction
+          </button>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsPanel" class="space-y-4 hidden">
+          <!-- Location & Road Info Card (NEW) -->
+          <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
+            <h3
+              class="text-sm font-bold text-gray-300 mb-3 border-b border-gray-700 pb-2"
+            >
+              📍 Road & Location Details
+            </h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-gray-400">Street Segment:</span>
+                <span id="resStreetName" class="font-semibold text-white"
+                  >--</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Area/Region:</span>
+                <span id="resArea" class="font-semibold text-white">--</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Road Type:</span>
+                <span id="resRoadType" class="font-semibold text-blue-400"
+                  >--</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Road Width:</span>
+                <span id="resWidth" class="font-semibold text-yellow-400"
+                  >--</span
+                >
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-400">Speed Limit:</span>
+                <span id="resSpeed" class="font-semibold text-green-400"
+                  >--</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <!-- Risk Cards -->
+          <div class="bg-gray-800/50 p-4 rounded-xl border-l-4 border-red-500">
+            <p class="text-xs text-gray-400">Accident Probability</p>
+            <p id="accidentProb" class="text-3xl font-bold text-red-400 mt-1">
+              --%
+            </p>
+            <div class="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+              <div
+                id="accidentBar"
+                class="bg-red-500 h-1.5 rounded-full transition-all"
+                style="width: 0%"
+              ></div>
+            </div>
+            <p class="text-lg font-bold mt-2" id="riskLevel">--</p>
+          </div>
+
+          <div class="bg-gray-800/50 p-4 rounded-xl border-l-4 border-cyan-500">
+            <p class="text-xs text-gray-400">Traffic Congestion Level</p>
+            <p id="trafficLevel" class="text-3xl font-bold text-cyan-400 mt-1">
+              --
+            </p>
+            <p class="text-xs text-gray-500 mt-2">
+              Probability: <span id="trafficProb">--</span>
+            </p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Map Area -->
+      <main class="flex-1 relative bg-gray-950">
+        <div id="map" class="w-full h-full"></div>
+
+        <!-- Map Stats -->
+        <div class="absolute top-4 right-4 z-10 space-y-2">
+          <div
+            class="bg-gray-900/80 backdrop-blur p-3 rounded-lg border border-gray-700 text-center"
+          >
+            <p class="text-xs text-gray-400">Predictions</p>
+            <p id="totalPredictions" class="text-xl font-bold text-cyan-400">
+              0
+            </p>
+          </div>
+        </div>
+
+        <!-- Hint -->
+        <div
+          id="clickHint"
+          class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 bg-gray-900/90 backdrop-blur px-6 py-3 rounded-full border border-gray-700 text-sm text-gray-300 transition-opacity duration-500"
+        >
+          💡 Click anywhere on the map to auto-fill coordinates
+        </div>
+      </main>
+    </div>
+
+    <script>
+      let map, markers, heatLayer;
+      let predictionCount = 0;
+      let isApiOnline = false;
+      const API_BASE = "http://localhost:8000";
+
+      // Initialize Map
+      function initMap() {
+        map = L.map("map", { center: [34.05, -118.24], zoom: 12 });
+        L.tileLayer(
+          "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+          {
+            attribution: "© OpenStreetMap",
+          },
+        ).addTo(map);
+
+        heatLayer = L.heatLayer([], {
+          radius: 25,
+          blur: 20,
+          maxZoom: 15,
+        }).addTo(map);
+        markers = L.layerGroup().addTo(map);
+
+        map.on("click", function (e) {
+          document.getElementById("latitude").value = e.latlng.lat.toFixed(4);
+          document.getElementById("longitude").value = e.latlng.lng.toFixed(4);
+          // Hide hint after first click
+          document.getElementById("clickHint").style.opacity = "0";
+        });
+      }
+
+      // Helper: Get rough area from Lat/Lng
+      function getArea(lat, lng) {
+        if (lat > 40) return "North US";
+        if (lat > 35) return "Central US";
+        return "South US";
+      }
+
+      // Check API
+      async function checkApi() {
+        try {
+          const res = await fetch(`${API_BASE}/`);
+          const data = await res.json();
+          isApiOnline = data.models_loaded;
+          document.getElementById("statusDot").className =
+            `w-2.5 h-2.5 rounded-full ${isApiOnline ? "bg-green-500" : "bg-yellow-500"} animate-pulse`;
+          document.getElementById("statusText").textContent = isApiOnline
+            ? "Models Active"
+            : "Demo Mode";
+        } catch (e) {
+          document.getElementById("statusText").textContent = "Offline (Demo)";
+        }
+      }
+
+      // Main Prediction Function
+      async function makePrediction() {
+        const btn = document.getElementById("predictBtn");
+        btn.disabled = true;
+        btn.textContent = "⏳ Analyzing...";
+
+        const payload = {
+          latitude: parseFloat(document.getElementById("latitude").value),
+          longitude: parseFloat(document.getElementById("longitude").value),
+          temperature: parseFloat(document.getElementById("temperature").value),
+          humidity: parseFloat(document.getElementById("humidity").value),
+          pressure: 29.9,
+          visibility: parseFloat(document.getElementById("visibility").value),
+          wind_speed: parseFloat(document.getElementById("wind_speed").value),
+          precipitation: 0.0,
+          hour: parseInt(document.getElementById("hour").value),
+          weather_condition: document.getElementById("weather_condition").value,
+          road_type: document.getElementById("road_type").value,
+        };
+
+        let result;
+        if (isApiOnline) {
+          try {
+            const res = await fetch(`${API_BASE}/predict`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            result = await res.json();
+          } catch (e) {
+            result = simulatePrediction(payload);
+          }
+        } else {
+          result = simulatePrediction(payload);
+        }
+
+        displayResults(result, payload);
+        addMapMarker(result, payload);
+
+        predictionCount++;
+        document.getElementById("totalPredictions").textContent =
+          predictionCount;
+
+        btn.disabled = false;
+        btn.textContent = "🔮 Get Prediction";
+      }
+
+      function displayResults(result, payload) {
+        document.getElementById("resultsPanel").classList.remove("hidden");
+
+        // Road & Location Details (NEW)
+        document.getElementById("resStreetName").textContent =
+          document.getElementById("streetName").value || "Unknown Segment";
+        document.getElementById("resArea").textContent = getArea(
+          payload.latitude,
+          payload.longitude,
+        );
+        document.getElementById("resRoadType").textContent = payload.road_type;
+
+        // Fetch actual width/speed returned from backend model
+        document.getElementById("resWidth").textContent =
+          result.details.road_width + " meters";
+        document.getElementById("resSpeed").textContent =
+          result.details.speed_limit + " mph";
+
+        // Accident Risk
+        const prob = result.accident_probability;
+        document.getElementById("accidentProb").textContent =
+          (prob * 100).toFixed(1) + "%";
+        document.getElementById("accidentBar").style.width = prob * 100 + "%";
+
+        const riskEl = document.getElementById("riskLevel");
+        riskEl.textContent = "⚠️ " + result.risk_level + " Risk";
+        riskEl.className = `text-lg font-bold mt-2 ${result.risk_level === "High" ? "text-red-500" : result.risk_level === "Medium" ? "text-yellow-400" : "text-green-400"}`;
+
+        // Traffic
+        const trafEl = document.getElementById("trafficLevel");
+        trafEl.textContent =
+          result.traffic_level === "High"
+            ? "🔴 High Congestion"
+            : "🟢 Low Traffic";
+        document.getElementById("trafficProb").textContent =
+          (result.traffic_probability * 100).toFixed(1) + "%";
+      }
+
+      function addMapMarker(result, payload) {
+        const prob = result.accident_probability;
+        const color =
+          prob >= 0.6 ? "#ef4444" : prob >= 0.3 ? "#facc15" : "#22c55e";
+
+        L.circleMarker([payload.latitude, payload.longitude], {
+          radius: 10,
+          fillColor: color,
+          color: "#fff",
+          weight: 2,
+          fillOpacity: 0.8,
+        }).addTo(markers).bindPopup(`
+                <div class="text-sm font-sans">
+                    <b style="color:${color}">${result.risk_level} Risk</b><br>
+                    <b>Street:</b> ${document.getElementById("streetName").value || "N/A"}<br>
+                    <b>Width:</b> ${result.details.road_width}m | <b>Speed:</b> ${result.details.speed_limit}mph<br>
+                    <b>Accident Prob:</b> ${(prob * 100).toFixed(1)}%<br>
+                    <b>Traffic:</b> ${result.traffic_level}
+                </div>
+            `);
+
+        heatLayer.addLatLng([payload.latitude, payload.longitude, prob]);
+      }
+
+      // Simple Demo Simulation if API fails
+      function simulatePrediction(p) {
+        let prob = 0.2;
+        if ([6, 7, 8, 16, 17, 18].includes(p.hour)) prob += 0.2;
+        if (["Rain", "Snow", "Fog"].includes(p.weather_condition)) prob += 0.15;
+        if (p.visibility < 5) prob += 0.1;
+        if (p.road_type === "Local") prob += 0.05; // Local roads slightly riskier in demos
+
+        let trafProb = 0.3;
+        if ([7, 8, 17, 18].includes(p.hour)) trafProb += 0.4;
+        if (["Rain", "Snow"].includes(p.weather_condition)) trafProb += 0.15;
+        if (p.road_type === "Internal") trafProb += 0.1;
+
+        const specs = {
+          Highway: { w: 34, s: 70 },
+          Local: { w: 22.5, s: 40 },
+          Internal: { w: 18.5, s: 25 },
+        };
+        const spec = specs[p.road_type];
+
+        return {
+          accident_probability: Math.min(prob, 0.95),
+          risk_level: prob >= 0.6 ? "High" : prob >= 0.3 ? "Medium" : "Low",
+          traffic_level: trafProb >= 0.5 ? "High" : "Low",
+          traffic_probability: Math.min(trafProb, 0.95),
+          details: {
+            road_width: spec.w,
+            speed_limit: spec.s,
+            road_type: p.road_type,
+            is_rush_hour: [6, 7, 8, 16, 17, 18].includes(p.hour),
+          },
+        };
+      }
+
+      // UI Updates
+      document.getElementById("hour").addEventListener("input", (e) => {
+        document.getElementById("hourDisplay").textContent =
+          String(e.target.value).padStart(2, "0") + ":00";
+      });
+
+      setInterval(() => {
+        document.getElementById("clock").textContent =
+          new Date().toLocaleTimeString();
+      }, 1000);
+
+      // Init
+      document.addEventListener("DOMContentLoaded", () => {
+        initMap();
+        checkApi();
+        setTimeout(
+          () => (document.getElementById("clickHint").style.opacity = "0"),
+          6000,
+        );
+      });
+    </script>
+  </body>
+</html>
