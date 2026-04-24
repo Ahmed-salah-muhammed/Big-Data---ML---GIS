@@ -13,7 +13,7 @@ def run_data_cleaning():
         "..",
         "data",
         "raw",
-        "US_Accidents_March23_sampled_500k.csv",
+        "dirty_dataset.csv",
     )
     processed_dir = os.path.join(os.path.dirname(__file__), "..", "data", "processed")
     output_path = os.path.join(processed_dir, "cleaned_data.csv")
@@ -36,6 +36,7 @@ def run_data_cleaning():
         "Source",
         "End_Lat",
         "End_Lng",
+        "End_Time",
         "Distance(mi)",
         "Description",
         "City",
@@ -44,7 +45,6 @@ def run_data_cleaning():
         "Zipcode",
         "Country",
         "Timezone",
-        "Airport_Code",
         "Weather_Timestamp",
         "Wind_Chill(F)",
         "Wind_Direction",
@@ -53,6 +53,7 @@ def run_data_cleaning():
         "Astronomical_Twilight",
         "Turning_Loop",
     ]
+
     existing_cols = [col for col in cols_to_drop if col in df.columns]
     df = df.drop(columns=existing_cols)
     print(f"   Dropped {len(existing_cols)} useless columns.")
@@ -60,23 +61,15 @@ def run_data_cleaning():
     # 3. Fix Broken Dates (Instead of dropping)
     print("-> Fixing broken dates (e.g., 37:14.0)...")
     df["Start_Time"] = pd.to_datetime(df["Start_Time"], errors="coerce")
-    df["End_Time"] = pd.to_datetime(df["End_Time"], errors="coerce")
 
-    missing_dates = df["Start_Time"].isna().sum()
-    if missing_dates > 0:
-        # Calculate median hour and month from the VALID dates to create a logical dummy time
-        median_hour = int(df["Start_Time"].dt.hour.median())
-        median_month = int(df["Start_Time"].dt.month.median())
-        dummy_date_str = f"2023-{median_month:02d}-01 {median_hour:02d}:00:00"
-        dummy_date = pd.to_datetime(dummy_date_str)
+    # Drop rows where Start_Time couldn't be parsed
+    df = df.dropna(subset=["Start_Time"])
 
-        # Fill broken dates with the dummy date
-        df["Start_Time"] = df["Start_Time"].fillna(dummy_date)  # 500000
-        print(
-            f"   Fixed {missing_dates} broken dates using median time: {dummy_date_str}"
-        )
+    # Extract Hour and Month for later use 
+    df["Hour"] = df["Start_Time"].dt.hour
+    df["Month"] = df["Start_Time"].dt.month  
 
-    # 4. Convert True/False to 1/0 (Avoiding Pandas ChainedAssignmentError)
+    # 4. Convert True/False to 1/0 
     print("-> Converting boolean columns to 1/0...")
     bool_cols = [
         "Amenity",
@@ -92,25 +85,25 @@ def run_data_cleaning():
         "Traffic_Calming",
         "Traffic_Signal",
     ]
-    for col in bool_cols:
-        if col in df.columns:
-            df[col] = df[col].apply(lambda x: 1 if str(x).lower() == "true" else 0)
+    df[bool_cols] = df[bool_cols].astype(int)
 
-    # 5. Fill Missing Numeric Values with Median (Avoiding Pandas ChainedAssignmentError)
-    print("-> Filling missing numeric values with median...")
-    num_cols = [
-        "Temperature(F)",
-        "Humidity(%)",
-        "Pressure(in)",
-        "Visibility(mi)",
-        "Wind_Speed(mph)",
-        "Precipitation(in)",
-    ]
-    for col in num_cols:
+    # 5. Fill Missing Numeric Values with Median 
+    print("-> Filling missing numeric values with median, grouped by location...")
+    weather_cols = ["Temperature(F)", "Humidity(%)", "Pressure(in)", "Visibility(mi)", "Wind_Speed(mph)"]
+    for col in weather_cols:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce")
-            median_val = df[col].median()
-            df[col] = df[col].fillna(median_val)
+            df[col] = df.groupby(['Airport_Code','Month'])[col].transform(lambda x: x.fillna(x.median()))
+            df[col] = df[col].fillna(df[col].median())
+
+    # Drop any remaining rows with missing weather data just in case
+    df=df.dropna(subset=weather_cols)
+    df=df.drop(columns=['Airport_Code'], errors='ignore')  # Drop Airport_Code if it exists, since we won't use it
+
+    df['Precipitation_NA'] = 0
+    df.loc[df['Precipitation(in)'].isnull(),'Precipitation_NA'] = 1
+    df['Precipitation(in)'] = df['Precipitation(in)'].fillna(df['Precipitation(in)'].median())  
+
 
     # 6. Save Cleaned Data
     print("-> Saving cleaned data...")

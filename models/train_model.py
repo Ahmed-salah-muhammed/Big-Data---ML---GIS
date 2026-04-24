@@ -5,7 +5,7 @@ import time
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 
 
 def train_models():
@@ -84,12 +84,19 @@ def train_models():
     # Train Random Forest (n_jobs=-1 uses all CPU cores to speed up 500k rows)
     model_acc = RandomForestClassifier(
         n_estimators=100,
-        max_depth=15,
+        max_depth=20,
         random_state=42,
         n_jobs=-1,
         class_weight="balanced",  # Helps if most accidents are severity 2 (Low Risk)
     )
     model_acc.fit(X_acc_train_scaled, y_acc_train)
+
+    preds_acc = model_acc.predict(X_acc_test_scaled)
+
+    # 2. Print the report table you want
+    print("\n--- Accident Risk Classification Report ---")
+    print(classification_report(y_acc_test, preds_acc))
+
 
     # Evaluate
     preds_acc = model_acc.predict(X_acc_test_scaled)
@@ -145,6 +152,13 @@ def train_models():
         class_weight="balanced",
     )
     model_traf.fit(X_traf_train_scaled, y_traf_train)
+
+
+    # 3. Do the same for the Traffic model later in the script
+    preds_traf = model_traf.predict(X_traf_test_scaled)
+    print("\n--- Traffic Congestion Classification Report ---")
+    print(classification_report(y_traf_test, preds_traf))
+
 
     # Evaluate
     preds_traf = model_traf.predict(X_traf_test_scaled)
