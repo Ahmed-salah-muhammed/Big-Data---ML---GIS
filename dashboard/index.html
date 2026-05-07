@@ -3,547 +3,4464 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Road Real-Time Prediction System</title>
+    <title>TrafficIQ — ITI Capstone · Real-Time Road Prediction</title>
 
-    <!-- Tailwind CSS CDN -->
+    <link rel="icon" type="image/png" href="./image.png" />
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- Leaflet CSS & JS -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-      /* Fix Leaflet tiles z-index with Tailwind */
+      /* ── ITI Brand System (same as branches project) ── */
+      :root {
+        --iti-red: #dc2626;
+        --iti-red-light: #ef4444;
+        --iti-red-dark: #b91c1c;
+        --iti-red-fade: #fca5a5;
+        --iti-red-glow: rgba(220, 38, 38, 0.18);
+        --iti-red-subtle: rgba(220, 38, 38, 0.06);
+        --gradient-primary: linear-gradient(
+          135deg,
+          #dc2626 0%,
+          #f87171 50%,
+          #fecaca 100%
+        );
+        --gradient-sidebar: linear-gradient(
+          180deg,
+          #141414 0%,
+          #1a1a1a 50%,
+          #1f1f1f 100%
+        );
+        --gradient-glow: radial-gradient(
+          ellipse at 30% 0%,
+          rgba(220, 38, 38, 0.1) 0%,
+          transparent 60%
+        );
+        --sidebar-bg: #141414;
+        --sidebar-card: #1e1e1e;
+        --sidebar-border: #2a2a2a;
+        --text-primary: #f5f5f5;
+        --text-secondary: #a3a3a3;
+        --text-muted: #737373;
+        --hi: #ef4444;
+        --md: #f59e0b;
+        --lo: #10b981;
+      }
+
+      *,
+      *::before,
+      *::after {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: #f5f5f5;
+        color: var(--text-primary);
+      }
+
+      /* ── Map ──────────────────────────────────────────── */
       .leaflet-container {
         z-index: 1;
+        background: #0b1120;
       }
-      .leaflet-pane {
-        z-index: 1;
-      }
+      .leaflet-pane,
       .leaflet-top,
       .leaflet-bottom {
         z-index: 2;
       }
+      .leaflet-heatmap-layer {
+        z-index: 350 !important;
+      }
+      .leaflet-control-attribution {
+        font-size: 10px !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        color: #a3a3a3 !important;
+        backdrop-filter: blur(4px);
+      }
+      .leaflet-control-attribution a {
+        color: var(--iti-red) !important;
+      }
+      .leaflet-grab {
+        cursor: pointer;
+      }
+
+      /* ── Sidebar Scrollbar ────────────────────────────── */
+      aside::-webkit-scrollbar {
+        width: 6px;
+      }
+      aside::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+      }
+      aside::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 10px;
+        transition: background 0.3s;
+      }
+      aside::-webkit-scrollbar-thumb:hover {
+        background: var(--iti-red);
+      }
+
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .custom-scroll::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 10px;
+      }
+
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background: #555;
+        border-radius: 10px;
+        transition: background 0.3s;
+      }
+
+      .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: var(--iti-red);
+      }
+
+      /* ── Animations (minimal) ────────────────────────── */
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(220, 38, 38, 0.2);
+        border-top-color: var(--iti-red);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      @keyframes segIn {
+        from {
+          opacity: 0;
+          transform: translateY(2px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .seg-anim {
+        animation: segIn 0.3s ease both;
+      }
+
+      @keyframes toastIn {
+        from {
+          transform: translateX(30px);
+          opacity: 0;
+        }
+        to {
+          transform: none;
+          opacity: 1;
+        }
+      }
+      .toast-in {
+        animation: toastIn 0.3s ease both;
+      }
+
+      @keyframes pulseDot {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      .pulse-dot {
+        animation: pulseDot 1.5s ease infinite;
+      }
+
+      /* ── Gradient Utilities ───────────────────────────── */
+      .grad-iti {
+        background: var(--gradient-primary);
+      }
+
+      /* ── Tabs ────────────────────────────────────────── */
+      .tab-on {
+        background: var(--gradient-primary);
+        color: #fff;
+        box-shadow: 0 4px 16px var(--iti-red-glow);
+      }
+      .tab-off {
+        color: var(--text-muted);
+      }
+      .tab-off:hover {
+        color: var(--iti-red-light);
+      }
+
+      /* ── Sidebar Card ────────────────────────────────── */
+      .glass {
+        background: var(--sidebar-card);
+        border: 1px solid var(--sidebar-border);
+        border-radius: 12px;
+      }
+      .glass-soft {
+        background: var(--iti-red-subtle);
+        border: 1px solid rgba(220, 38, 38, 0.12);
+        border-radius: 12px;
+      }
+
+      /* ── Gauge Glow ──────────────────────────────────── */
+      .ring-glow-hi {
+        box-shadow:
+          0 0 0 1px rgba(239, 68, 68, 0.3),
+          0 6px 20px rgba(239, 68, 68, 0.15);
+      }
+      .ring-glow-md {
+        box-shadow:
+          0 0 0 1px rgba(245, 158, 11, 0.3),
+          0 6px 20px rgba(245, 158, 11, 0.15);
+      }
+      .ring-glow-lo {
+        box-shadow:
+          0 0 0 1px rgba(16, 185, 129, 0.3),
+          0 6px 20px rgba(16, 185, 129, 0.15);
+      }
+
+      .gauge-track {
+        stroke: #2a2a2a;
+      }
+      .gauge-fill {
+        transition: stroke-dashoffset 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      /* ── Range Slider ────────────────────────────────── */
+      input[type="range"] {
+        -webkit-appearance: none;
+        height: 5px;
+        background: #2a2a2a;
+        border-radius: 3px;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--iti-red);
+        box-shadow: 0 1px 6px rgba(220, 38, 38, 0.3);
+        cursor: pointer;
+      }
+
+      /* ── Toggle Switch ───────────────────────────────── */
+      .toggle {
+        width: 38px;
+        height: 20px;
+        background: #2a2a2a;
+        border-radius: 999px;
+        position: relative;
+        transition: 0.2s;
+        cursor: pointer;
+        flex-shrink: 0;
+      }
+      .toggle::after {
+        content: "";
+        position: absolute;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #737373;
+        transition: 0.2s;
+      }
+      .toggle.on {
+        background: var(--iti-red);
+      }
+      .toggle.on::after {
+        left: 20px;
+        background: #fff;
+      }
+
+      /* ── Keyboard Shortcut Badge ─────────────────────── */
+      .kbd {
+        background: #2a2a2a;
+        border: 1px solid var(--sidebar-border);
+        border-bottom-width: 2px;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-family: ui-monospace, monospace;
+        font-size: 10px;
+        color: var(--text-secondary);
+      }
+
+      /* ── Team Chip ──────────────────────────────────── */
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 10px;
+        font-weight: 500;
+        background: var(--sidebar-card);
+        border: 1px solid var(--sidebar-border);
+        color: var(--text-secondary);
+      }
+
+      /* ── Logo Frame ─────────────────────────────────── */
+
+      .iti-logo-frame {
+        width: 120px;
+        height: auto;
+
+        mix-blend-mode: lighten;
+
+        border: none;
+        background: none;
+      }
+
+      /* ── Gradient Text ───────────────────────────────── */
+      .grad-text-iti {
+        background: linear-gradient(
+          90deg,
+          var(--iti-red-light),
+          var(--iti-red-fade)
+        );
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      /* ── Form Controls ──────────────────────────────── */
+      .iti-input {
+        width: 100%;
+        padding: 8px 12px;
+        background: var(--sidebar-bg);
+        border: 1px solid var(--sidebar-border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .iti-input::placeholder {
+        color: var(--text-muted);
+      }
+      .iti-input:focus {
+        border-color: var(--iti-red);
+        box-shadow: 0 0 0 3px var(--iti-red-glow);
+      }
+      .iti-select {
+        width: 100%;
+        padding: 8px 12px;
+        background: var(--sidebar-bg);
+        border: 1px solid var(--sidebar-border);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 13px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.2s;
+        -webkit-appearance: none;
+      }
+      .iti-select:focus {
+        border-color: var(--iti-red);
+        box-shadow: 0 0 0 3px var(--iti-red-glow);
+      }
+
+      /* ── Map Overlay Cards ──────────────────────────── */
+      .map-card {
+        background: #fff;
+        border: 1px solid #e5e5e5;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+
+      /* ── Status Colors ──────────────────────────────── */
+      .status-high {
+        color: var(--hi);
+      }
+      .status-medium {
+        color: var(--md);
+      }
+      .status-low {
+        color: var(--lo);
+      }
+
+      /* ── Sticky tabs / Resizable sidebar / Mobile drawer ─── */
+      #stickyTabs {
+        position: sticky;
+        top: 0;
+        z-index: 25;
+        background: var(--sidebar-bg);
+        backdrop-filter: blur(8px);
+      }
+      #sidebarResizer {
+        position: absolute;
+        top: 0;
+        right: -3px;
+        width: 6px;
+        height: 100%;
+        cursor: col-resize;
+        z-index: 60;
+        background: transparent;
+        transition: background 0.2s;
+      }
+      #sidebarResizer:hover,
+      #sidebarResizer.active {
+        background: var(--iti-red);
+      }
+      body.resizing,
+      body.resizing * {
+        user-select: none !important;
+        cursor: col-resize !important;
+      }
+      #mobileToggle {
+        display: none;
+        position: fixed;
+        bottom: 18px;
+        right: 18px;
+        z-index: 1000;
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+        font-size: 18px;
+        align-items: center;
+        justify-content: center;
+      }
+      #sidebarBackdrop {
+        display: none;
+        position: fixed;
+        inset: 56px 0 36px 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 998;
+      }
+      @media (max-width: 768px) {
+        #sidebar {
+          position: fixed !important;
+          top: 56px;
+          left: 0;
+          height: calc(100vh - 92px);
+          width: 88% !important;
+          max-width: 360px;
+          z-index: 999;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+          box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+        }
+        #sidebar.open {
+          transform: translateX(0);
+        }
+        #sidebar.open ~ #sidebarBackdrop {
+          display: block;
+        }
+        #sidebarResizer {
+          display: flex;
+          width: 10px;
+        }
+        #mobileToggle {
+          display: flex;
+        }
+      }
     </style>
   </head>
-  <body class="bg-gray-950 text-gray-100 font-sans">
-    <!-- Header -->
+
+  <body class="overflow-hidden">
+    <!-- ═══════════ HEADER ═══════════ -->
     <header
-      class="bg-gray-900 border-b border-gray-800 px-6 py-3 flex justify-between items-center shadow-lg z-50 relative"
+      style="
+        height: 56px;
+        background: var(--gradient-sidebar);
+        border-bottom: 1px solid var(--sidebar-border);
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 50;
+        position: relative;
+      "
     >
-      <h1
-        class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-600 bg-clip-text text-transparent"
+      <div style="display: flex; align-items: center; gap: 12px">
+        <div class="">
+          <img
+            src="./iti-logo.png"
+            alt="ITI logo"
+            class="iti-logo-frame"
+            style="
+              height: 38px;
+              width: auto;
+              border: 0px;
+              background-color: none;
+            "
+          />
+        </div>
+        <div
+          style="
+            width: 1px;
+            height: 24px;
+            background: linear-gradient(
+              to bottom,
+              transparent,
+              var(--sidebar-border),
+              transparent
+            );
+          "
+        ></div>
+        <div style="line-height: 1.2">
+          <div
+            style="
+              font-size: 15px;
+              font-weight: 700;
+              color: var(--text-primary);
+              letter-spacing: -0.01em;
+            "
+          >
+            TrafficIQ
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted)">
+            Real-Time Accident & Traffic Prediction
+          </div>
+        </div>
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 6px"
+        class="hidden lg:flex"
       >
-        🚀 Road Real-Time Prediction System
-      </h1>
-      <div class="flex items-center gap-4 text-sm">
-        <div id="apiStatus" class="flex items-center gap-2">
+        <span
+          style="
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+            margin-right: 4px;
+          "
+          >Team</span
+        >
+        <span class="chip"
+          ><i
+            class="fas fa-user"
+            style="font-size: 8px; color: var(--iti-red)"
+          ></i>
+          Abdulrahman Omar</span
+        >
+        <span class="chip"
+          ><i
+            class="fas fa-user"
+            style="font-size: 8px; color: var(--iti-red)"
+          ></i>
+          Muhammed Ashraf</span
+        >
+        <span class="chip"
+          ><i
+            class="fas fa-user"
+            style="font-size: 8px; color: var(--iti-red)"
+          ></i>
+          Ahmed Salah</span
+        >
+      </div>
+
+      <div
+        style="display: flex; align-items: center; gap: 16px; font-size: 12px"
+      >
+        <div
+          class="hidden md:flex items-center gap-1.5"
+          style="color: var(--text-muted)"
+        >
+          <span id="hdrCount" class="grad-text-iti" style="font-weight: 700"
+            >0</span
+          >
+          predictions
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px">
           <div
             id="statusDot"
-            class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"
+            style="
+              width: 7px;
+              height: 7px;
+              border-radius: 50%;
+              background: #f59e0b;
+            "
+            class="pulse-dot"
           ></div>
-          <span id="statusText" class="text-gray-400">Checking API...</span>
+          <span
+            id="statusText"
+            style="color: var(--text-secondary); font-size: 11px"
+            >Connecting...</span
+          >
         </div>
-        <span id="clock" class="text-gray-500 font-mono"></span>
+        <span
+          id="clock"
+          style="
+            color: var(--text-muted);
+            font-family: ui-monospace, monospace;
+            font-size: 11px;
+          "
+        ></span>
       </div>
     </header>
 
-    <!-- Main Layout -->
-    <div class="flex h-[calc(100vh-52px)]">
-      <!-- Sidebar -->
+    <!-- ═══════════ MAIN ═══════════ -->
+    <div style="display: flex; height: calc(100vh - 92px)">
+      <!-- ═══════════ SIDEBAR ═══════════ -->
       <aside
-        class="w-[380px] bg-gray-900 border-r border-gray-800 overflow-y-auto p-5 space-y-5 flex-shrink-0"
+        id="sidebar"
+        style="
+          width: 400px;
+          min-width: 280px;
+          max-width: 720px;
+          flex-shrink: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
+          background: var(--gradient-sidebar);
+          border-right: 1px solid var(--sidebar-border);
+          position: relative;
+        "
       >
-        <!-- Input Section -->
+        <div id="sidebarResizer" title="Drag to resize"></div>
+        <!-- subtle top glow -->
         <div
-          class="bg-gray-800/50 p-4 rounded-xl border border-gray-700 space-y-4"
+          style="
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 180px;
+            background: var(--gradient-glow);
+            pointer-events: none;
+          "
+        ></div>
+
+        <!-- Mode Tabs -->
+        <div
+          id="stickyTabs"
+          style="
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--sidebar-border);
+            position: sticky;
+            top: 0;
+            z-index: 25;
+          "
         >
-          <h2 class="text-cyan-400 font-semibold flex items-center gap-2">
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-              ></path>
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-              ></path>
-            </svg>
-            Location & Conditions
-          </h2>
-
-          <!-- Optional Street Name -->
-          <div>
-            <label class="text-xs text-gray-400 mb-1 block"
-              >Street Name (Optional Display)</label
-            >
-            <input
-              type="text"
-              id="streetName"
-              placeholder="e.g., Salah Salem, I-95"
-              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-            />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block">Latitude</label>
-              <input
-                type="number"
-                id="latitude"
-                value="34.05"
-                step="0.01"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block">Longitude</label>
-              <input
-                type="number"
-                id="longitude"
-                value="-118.24"
-                step="0.01"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          </div>
-
-          <!-- Road Type (NEW) -->
-          <div>
-            <label class="text-xs text-gray-400 mb-1 block"
-              >Road Type & Width</label
-            >
-            <select
-              id="road_type"
-              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-            >
-              <option value="Highway">
-                Highway (Width: 32-36m, Speed: 65-75mph)
-              </option>
-              <option value="Local" selected>
-                Local Road (Width: 21-24m, Speed: 35-45mph)
-              </option>
-              <option value="Internal">
-                Internal (Width: 16-21m, Speed: 20-30mph)
-              </option>
-            </select>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block"
-                >Temperature (°F)</label
-              >
-              <input
-                type="number"
-                id="temperature"
-                value="72"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block"
-                >Humidity (%)</label
-              >
-              <input
-                type="number"
-                id="humidity"
-                value="45"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block"
-                >Visibility (mi)</label
-              >
-              <input
-                type="number"
-                id="visibility"
-                value="10"
-                step="0.1"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label class="text-xs text-gray-400 mb-1 block"
-                >Wind Speed (mph)</label
-              >
-              <input
-                type="number"
-                id="wind_speed"
-                value="8"
-                class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-400 mb-1 block"
-              >Hour of Day:
-              <span id="hourDisplay" class="text-cyan-400 font-bold"
-                >12:00</span
-              ></label
-            >
-            <input
-              type="range"
-              id="hour"
-              min="0"
-              max="23"
-              value="12"
-              class="w-full accent-cyan-500"
-            />
-          </div>
-
-          <div>
-            <label class="text-xs text-gray-400 mb-1 block">Weather</label>
-            <select
-              id="weather_condition"
-              class="w-full p-2.5 bg-gray-900 border border-gray-600 rounded-lg text-sm focus:outline-none focus:border-cyan-500"
-            >
-              <option value="Clear">☀️ Clear</option>
-              <option value="Cloudy">☁️ Cloudy</option>
-              <option value="Rain">🌧️ Rain</option>
-              <option value="Snow">❄️ Snow</option>
-              <option value="Fog">🌫️ Fog</option>
-            </select>
-          </div>
-
-          <button
-            onclick="makePrediction()"
-            id="predictBtn"
-            class="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-lg hover:opacity-90 transition shadow-lg"
+          <div
+            style="
+              display: flex;
+              background: var(--sidebar-card);
+              border: 1px solid var(--sidebar-border);
+              border-radius: 10px;
+              padding: 3px;
+              gap: 3px;
+            "
           >
-            🔮 Get Prediction
-          </button>
+            <button
+              id="tabPoint"
+              onclick="setMode('predict')"
+              class="flex-1 py-2 text-sm font-semibold rounded-lg transition tab-on"
+              style="border: none; cursor: pointer; font-family: inherit"
+            >
+              <i
+                class="fas fa-map-pin"
+                style="margin-right: 4px; font-size: 11px"
+              ></i>
+              Point
+            </button>
+            <button
+              id="tabRoute"
+              onclick="setMode('route')"
+              class="flex-1 py-2 text-sm font-semibold rounded-lg transition tab-off"
+              style="border: none; cursor: pointer; font-family: inherit"
+            >
+              <i
+                class="fas fa-route"
+                style="margin-right: 4px; font-size: 11px"
+              ></i>
+              Route
+            </button>
+            <button
+              id="tabGrid"
+              onclick="setMode('grid')"
+              class="flex-1 py-2 text-sm font-semibold rounded-lg transition tab-off"
+              style="border: none; cursor: pointer; font-family: inherit"
+            >
+              <i
+                class="fas fa-th"
+                style="margin-right: 4px; font-size: 11px"
+              ></i>
+              Grid
+            </button>
+          </div>
         </div>
 
-        <!-- Results Section -->
-        <div id="resultsPanel" class="space-y-4 hidden">
-          <!-- Location & Road Info Card (NEW) -->
-          <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700">
-            <h3
-              class="text-sm font-bold text-gray-300 mb-3 border-b border-gray-700 pb-2"
+        <!-- Search -->
+        <div style="padding: 12px 16px 0; position: relative">
+          <div style="display: flex; gap: 8px">
+            <div style="position: relative; flex: 1">
+              <i
+                class="fas fa-search"
+                style="
+                  position: absolute;
+                  left: 10px;
+                  top: 50%;
+                  transform: translateY(-50%);
+                  color: var(--text-muted);
+                  font-size: 12px;
+                "
+              ></i>
+              <input
+                id="searchInput"
+                type="text"
+                placeholder="Search address or city..."
+                class="iti-input"
+                style="padding-left: 32px"
+              />
+            </div>
+            <button
+              onclick="searchAddress()"
+              style="
+                padding: 0 14px;
+                background: var(--gradient-primary);
+                border: none;
+                border-radius: 8px;
+                color: #fff;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                font-family: inherit;
+                transition: opacity 0.2s;
+              "
+              onmouseover="this.style.opacity = '.85'"
+              onmouseout="this.style.opacity = '1'"
             >
-              📍 Road & Location Details
-            </h3>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-gray-400">Street Segment:</span>
-                <span id="resStreetName" class="font-semibold text-white"
-                  >--</span
+              Go
+            </button>
+          </div>
+          <div
+            id="searchDropdown"
+            style="
+              position: absolute;
+              left: 16px;
+              right: 16px;
+              top: 100%;
+              margin-top: 4px;
+              background: var(--sidebar-card);
+              border: 1px solid var(--sidebar-border);
+              border-radius: 10px;
+              overflow: hidden;
+              box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+              z-index: 50;
+              display: none;
+            "
+          ></div>
+        </div>
+
+        <!-- Conditions Panel -->
+        <div
+          style="
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <div
+            class="glass"
+            style="
+              padding: 16px;
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: between;
+              "
+            >
+              <span
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                  flex: 1;
+                "
+              >
+                <i
+                  class="fas fa-sliders-h"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Conditions</span
+              >
+              <div style="display: flex; align-items: center; gap: 6px">
+                <span
+                  id="rushBadge"
+                  class="hidden"
+                  style="
+                    font-size: 10px;
+                    font-weight: 600;
+                    padding: 2px 8px;
+                    border-radius: 999px;
+                    background: rgba(245, 158, 11, 0.1);
+                    color: #f59e0b;
+                    border: 1px solid rgba(245, 158, 11, 0.25);
+                  "
+                  >Rush</span
                 >
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-400">Area/Region:</span>
-                <span id="resArea" class="font-semibold text-white">--</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-gray-400">Road Type:</span>
-                <span id="resRoadType" class="font-semibold text-blue-400"
-                  >--</span
+                <button
+                  onclick="autoWeather()"
+                  id="autoWxBtn"
+                  style="
+                    font-size: 10px;
+                    padding: 3px 8px;
+                    border-radius: 6px;
+                    background: var(--iti-red-subtle);
+                    border: 1px solid rgba(220, 38, 38, 0.2);
+                    color: var(--iti-red-light);
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: background 0.2s;
+                  "
+                  onmouseover="this.style.background = 'rgba(220,38,38,.12)'"
+                  onmouseout="this.style.background = 'var(--iti-red-subtle)'"
                 >
+                  <i class="fas fa-cloud-sun" style="margin-right: 3px"></i>
+                  Auto
+                </button>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-400">Road Width:</span>
-                <span id="resWidth" class="font-semibold text-yellow-400"
-                  >--</span
+            </div>
+
+            <!-- Time Slider -->
+            <div>
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 6px;
+                "
+              >
+                <label style="font-size: 11px; color: var(--text-muted)"
+                  ><i
+                    class="fas fa-clock"
+                    style="
+                      margin-right: 4px;
+                      width: 12px;
+                      color: var(--iti-red);
+                    "
+                  ></i>
+                  Time of Day</label
                 >
+                <div style="display: flex; align-items: center; gap: 6px">
+                  <span
+                    id="hourDisplay"
+                    class="grad-text-iti"
+                    style="
+                      font-family: ui-monospace, monospace;
+                      font-weight: 700;
+                      font-size: 13px;
+                    "
+                    >08:00</span
+                  >
+                  <button
+                    id="playBtn"
+                    onclick="toggleTimeLapse()"
+                    title="Animate 24h"
+                    style="
+                      width: 26px;
+                      height: 26px;
+                      border-radius: 6px;
+                      background: var(--sidebar-card);
+                      border: 1px solid var(--sidebar-border);
+                      color: var(--text-secondary);
+                      cursor: pointer;
+                      font-size: 10px;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      transition: all 0.2s;
+                    "
+                    onmouseover="
+                      this.style.borderColor = 'var(--iti-red)';
+                      this.style.color = 'var(--iti-red-light)';
+                    "
+                    onmouseout="
+                      this.style.borderColor = 'var(--sidebar-border)';
+                      this.style.color = 'var(--text-secondary)';
+                    "
+                  >
+                    <i class="fas fa-play"></i>
+                  </button>
+                </div>
               </div>
-              <div class="flex justify-between">
-                <span class="text-gray-400">Speed Limit:</span>
-                <span id="resSpeed" class="font-semibold text-green-400"
-                  >--</span
+              <input
+                type="range"
+                id="hour"
+                min="0"
+                max="23"
+                value="8"
+                class="w-full"
+              />
+            </div>
+
+            <!-- Weather + Road -->
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"
+            >
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Weather</label
                 >
+                <select id="weather_condition" class="iti-select">
+                  <option value="Clear">Clear</option>
+                  <option value="Cloudy">Cloudy</option>
+                  <option value="Rain">Rain</option>
+                  <option value="Snow">Snow</option>
+                  <option value="Fog">Fog</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Road Type</label
+                >
+                <select id="road_type" class="iti-select">
+                  <option value="Highway">Highway</option>
+                  <option value="Local" selected>Local</option>
+                  <option value="Internal">Internal</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Units toggle (imperial = US, metric = Cairo / rest of world) -->
+            <div style="margin-top: 8px">
+              <label
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  display: block;
+                  margin-bottom: 4px;
+                "
+                >Units</label
+              >
+              <select id="units" class="iti-select" onchange="onUnitsChange()">
+                <option value="imperial" selected>
+                  Imperial (°F, mph, in, mi)
+                </option>
+                <option value="metric">Metric (°C, km/h, mm, km)</option>
+              </select>
+            </div>
+
+            <!-- Visibility + Precip -->
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"
+            >
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Visibility (mi)</label
+                >
+                <input
+                  type="number"
+                  id="visibility"
+                  value="10"
+                  min="0.1"
+                  max="20"
+                  step="0.5"
+                  class="iti-input"
+                />
+              </div>
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Precip (in)</label
+                >
+                <input
+                  type="number"
+                  id="precipitation"
+                  value="0"
+                  min="0"
+                  max="5"
+                  step="0.05"
+                  class="iti-input"
+                />
+              </div>
+            </div>
+
+            <!-- Temp + Humid + Wind -->
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 8px;
+              "
+            >
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Temp (°F)</label
+                >
+                <input
+                  type="number"
+                  id="temperature"
+                  value="72"
+                  class="iti-input"
+                />
+              </div>
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Humid (%)</label
+                >
+                <input
+                  type="number"
+                  id="humidity"
+                  value="55"
+                  class="iti-input"
+                />
+              </div>
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Wind</label
+                >
+                <input
+                  type="number"
+                  id="wind_speed"
+                  value="6"
+                  class="iti-input"
+                />
+              </div>
+            </div>
+
+            <!-- Travel Mode -->
+            <div>
+              <label
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  display: block;
+                  margin-bottom: 4px;
+                "
+                >Travel Mode</label
+              >
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  gap: 4px;
+                  background: var(--sidebar-bg);
+                  border-radius: 8px;
+                  padding: 3px;
+                "
+              >
+                <button
+                  class="modeBtn"
+                  data-mode="vehicle"
+                  style="
+                    padding: 7px;
+                    font-size: 11px;
+                    border-radius: 6px;
+                    border: none;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                  "
+                >
+                  <i class="fas fa-car" style="font-size: 10px"></i> Vehicle
+                </button>
+                <button
+                  class="modeBtn"
+                  data-mode="cyclist"
+                  style="
+                    padding: 7px;
+                    font-size: 11px;
+                    border-radius: 6px;
+                    border: none;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                  "
+                >
+                  <i class="fas fa-bicycle" style="font-size: 10px"></i> Cyclist
+                </button>
+                <button
+                  class="modeBtn"
+                  data-mode="pedestrian"
+                  style="
+                    padding: 7px;
+                    font-size: 11px;
+                    border-radius: 6px;
+                    border: none;
+                    cursor: pointer;
+                    font-family: inherit;
+                    transition: all 0.2s;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 4px;
+                  "
+                >
+                  <i class="fas fa-walking" style="font-size: 10px"></i>
+                  Pedestrian
+                </button>
               </div>
             </div>
           </div>
 
-          <!-- Risk Cards -->
-          <div class="bg-gray-800/50 p-4 rounded-xl border-l-4 border-red-500">
-            <p class="text-xs text-gray-400">Accident Probability</p>
-            <p id="accidentProb" class="text-3xl font-bold text-red-400 mt-1">
-              --%
-            </p>
-            <div class="w-full bg-gray-700 rounded-full h-1.5 mt-2">
+          <!-- What-If Panel -->
+          <div
+            class="glass"
+            style="
+              padding: 14px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <span
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                "
+              >
+                <i
+                  class="fas fa-flask"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                What-If</span
+              >
+              <span
+                style="font-size: 10px; color: var(--text-muted)"
+                id="whatIfBadge"
+                >No edits</span
+              >
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <span style="font-size: 12px; color: var(--text-secondary)"
+                >Simulate road closure on click</span
+              >
               <div
-                id="accidentBar"
-                class="bg-red-500 h-1.5 rounded-full transition-all"
-                style="width: 0%"
+                id="tgClosure"
+                class="toggle"
+                onclick="toggleSwitch('tgClosure')"
               ></div>
             </div>
-            <p class="text-lg font-bold mt-2" id="riskLevel">--</p>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <span style="font-size: 12px; color: var(--text-secondary)"
+                >Add traffic signal on click</span
+              >
+              <div
+                id="tgSignal"
+                class="toggle on"
+                onclick="toggleSwitch('tgSignal')"
+              ></div>
+            </div>
+            <p
+              style="
+                font-size: 10px;
+                color: var(--text-muted);
+                line-height: 1.5;
+              "
+            >
+              Closure forces 95% probability for nearby segments; signal sets
+              the Junction/Signal flags fed to the model.
+            </p>
+          </div>
+        </div>
+
+        <!-- ═══ POINT PANEL ═══ -->
+        <div
+          id="pointPanel"
+          style="
+            padding: 0 16px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <div
+            class="glass"
+            style="
+              padding: 14px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+              "
+            >
+              <span
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                "
+              >
+                <i
+                  class="fas fa-map-marker-alt"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Location</span
+              >
+              <button
+                onclick="copyCoords()"
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  background: none;
+                  border: none;
+                  cursor: pointer;
+                  font-family: inherit;
+                  transition: color 0.2s;
+                "
+                onmouseover="this.style.color = 'var(--iti-red-light)'"
+                onmouseout="this.style.color = 'var(--text-muted)'"
+              >
+                <i class="fas fa-copy"></i> Copy
+              </button>
+            </div>
+
+            <div
+              style="
+                background: var(--sidebar-bg);
+                border: 1px solid var(--sidebar-border);
+                border-radius: 8px;
+                padding: 10px 12px;
+              "
+            >
+              <p
+                id="ptStreet"
+                style="
+                  font-size: 13px;
+                  color: var(--text-primary);
+                  font-weight: 500;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                "
+              >
+                Click map to select location
+              </p>
+              <p
+                id="ptArea"
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  margin-top: 2px;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                "
+              >
+                —
+              </p>
+            </div>
+
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"
+            >
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Latitude</label
+                >
+                <input
+                  type="number"
+                  id="latitude"
+                  value="30.0444"
+                  step="0.0001"
+                  class="iti-input"
+                  style="font-family: ui-monospace, monospace"
+                />
+              </div>
+              <div>
+                <label
+                  style="
+                    font-size: 11px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Longitude</label
+                >
+                <input
+                  type="number"
+                  id="longitude"
+                  value="31.2357"
+                  step="0.0001"
+                  class="iti-input"
+                  style="font-family: ui-monospace, monospace"
+                />
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 8px">
+              <button
+                type="button"
+                onclick="
+                  event.preventDefault();
+                  makePrediction();
+                  return false;
+                "
+                id="predictBtn"
+                style="
+                  flex: 1;
+                  padding: 10px;
+                  background: var(--gradient-primary);
+                  border: none;
+                  border-radius: 8px;
+                  color: #fff;
+                  font-weight: 600;
+                  font-size: 13px;
+                  cursor: pointer;
+                  font-family: inherit;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  transition: all 0.2s;
+                  box-shadow: 0 4px 16px var(--iti-red-glow);
+                "
+                onmouseover="this.style.transform = 'translateY(-1px)'"
+                onmouseout="this.style.transform = 'none'"
+              >
+                <i class="fas fa-bolt"></i> Predict
+              </button>
+              <button
+                onclick="clearMarkers()"
+                style="
+                  padding: 10px 12px;
+                  background: var(--sidebar-card);
+                  border: 1px solid var(--sidebar-border);
+                  color: var(--text-secondary);
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  transition: all 0.2s;
+                "
+                onmouseover="this.style.borderColor = 'var(--iti-red)'"
+                onmouseout="this.style.borderColor = 'var(--sidebar-border)'"
+                title="Clear"
+              >
+                <i class="fas fa-trash-alt"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="bg-gray-800/50 p-4 rounded-xl border-l-4 border-cyan-500">
-            <p class="text-xs text-gray-400">Traffic Congestion Level</p>
-            <p id="trafficLevel" class="text-3xl font-bold text-cyan-400 mt-1">
-              --
+          <!-- Point Results -->
+          <div
+            id="pointResults"
+            style="
+              display: none;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <!-- Dual Gauges -->
+            <div
+              style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"
+            >
+              <div
+                id="gaugeCardTraffic"
+                class="glass"
+                style="padding: 12px; text-align: center"
+              >
+                <p
+                  style="
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    color: var(--text-muted);
+                  "
+                >
+                  <i
+                    class="fas fa-traffic-light"
+                    style="color: var(--iti-red); margin-right: 3px"
+                  ></i>
+                  Traffic
+                </p>
+                <div
+                  style="
+                    position: relative;
+                    display: inline-block;
+                    margin-top: 4px;
+                  "
+                >
+                  <svg width="150" height="84" viewBox="0 0 200 110">
+                    <path
+                      d="M15 100 A85 85 0 0 1 185 100"
+                      fill="none"
+                      class="gauge-track"
+                      stroke-width="14"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      id="gaugeTraffic"
+                      d="M15 100 A85 85 0 0 1 185 100"
+                      fill="none"
+                      stroke="url(#gradTraffic)"
+                      stroke-width="14"
+                      stroke-linecap="round"
+                      stroke-dasharray="267"
+                      stroke-dashoffset="267"
+                      class="gauge-fill"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="gradTraffic"
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop offset="0%" stop-color="#10b981" />
+                        <stop offset="50%" stop-color="#f59e0b" />
+                        <stop offset="100%" stop-color="#ef4444" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div
+                    style="
+                      position: absolute;
+                      inset-inline: 0;
+                      bottom: 0;
+                      text-align: center;
+                    "
+                  >
+                    <div
+                      id="trafLevel"
+                      style="font-size: 18px; font-weight: 800"
+                    >
+                      --
+                    </div>
+                    <div
+                      id="trafProb"
+                      style="
+                        font-size: 10px;
+                        color: var(--text-muted);
+                        font-family: ui-monospace, monospace;
+                      "
+                    >
+                      --%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                id="gaugeCardSeverity"
+                class="glass"
+                style="padding: 12px; text-align: center"
+              >
+                <p
+                  style="
+                    font-size: 10px;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    color: var(--text-muted);
+                  "
+                >
+                  <i
+                    class="fas fa-exclamation-triangle"
+                    style="color: var(--iti-red); margin-right: 3px"
+                  ></i>
+                  Accident Risk
+                </p>
+                <div
+                  style="
+                    position: relative;
+                    display: inline-block;
+                    margin-top: 4px;
+                  "
+                >
+                  <svg width="150" height="84" viewBox="0 0 200 110">
+                    <path
+                      d="M15 100 A85 85 0 0 1 185 100"
+                      fill="none"
+                      class="gauge-track"
+                      stroke-width="14"
+                      stroke-linecap="round"
+                    />
+                    <path
+                      id="gaugeSeverity"
+                      d="M15 100 A85 85 0 0 1 185 100"
+                      fill="none"
+                      stroke="url(#gradSeverity)"
+                      stroke-width="14"
+                      stroke-linecap="round"
+                      stroke-dasharray="267"
+                      stroke-dashoffset="267"
+                      class="gauge-fill"
+                    />
+                    <defs>
+                      <linearGradient
+                        id="gradSeverity"
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop offset="0%" stop-color="#10b981" />
+                        <stop offset="50%" stop-color="#f59e0b" />
+                        <stop offset="100%" stop-color="#DC2626" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div
+                    style="
+                      position: absolute;
+                      inset-inline: 0;
+                      bottom: 0;
+                      text-align: center;
+                    "
+                  >
+                    <div
+                      id="riskLevel"
+                      style="font-size: 18px; font-weight: 800"
+                    >
+                      --
+                    </div>
+                    <div
+                      id="riskProb"
+                      style="
+                        font-size: 10px;
+                        color: var(--text-muted);
+                        font-family: ui-monospace, monospace;
+                      "
+                    >
+                      --%
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Modal Risk -->
+            <div class="glass" style="padding: 12px">
+              <div
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px"
+              >
+                <div
+                  style="
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                    text-align: center;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 10px;
+                      color: var(--text-muted);
+                      text-transform: uppercase;
+                    "
+                  >
+                    Modal Risk
+                  </p>
+                  <p
+                    id="modalRisk"
+                    style="
+                      font-size: 14px;
+                      font-weight: 700;
+                      color: var(--iti-red-light);
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+                <div
+                  style="
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                    text-align: center;
+                  "
+                >
+                  <p
+                    style="
+                      font-size: 10px;
+                      color: var(--text-muted);
+                      text-transform: uppercase;
+                    "
+                  >
+                    Mode
+                  </p>
+                  <p
+                    id="modalMode"
+                    style="
+                      font-size: 14px;
+                      font-weight: 700;
+                      color: var(--text-primary);
+                      margin-top: 2px;
+                    "
+                  >
+                    Vehicle
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Model Inputs -->
+            <div class="glass" style="padding: 14px">
+              <p
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                  margin-bottom: 8px;
+                "
+              >
+                <i
+                  class="fas fa-dna"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Model Inputs
+              </p>
+              <div
+                id="detailGrid"
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr;
+                  gap: 2px 12px;
+                  font-size: 11px;
+                "
+              ></div>
+            </div>
+
+            <!-- Road Specs -->
+            <div class="glass" style="padding: 14px">
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  gap: 12px;
+                  text-align: center;
+                "
+              >
+                <div>
+                  <p style="font-size: 10px; color: var(--text-muted)">Type</p>
+                  <p
+                    id="resType"
+                    style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: var(--text-primary);
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+                <div>
+                  <p style="font-size: 10px; color: var(--text-muted)">Width</p>
+                  <p
+                    id="resWidth"
+                    style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: #f59e0b;
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+                <div>
+                  <p style="font-size: 10px; color: var(--text-muted)">Speed</p>
+                  <p
+                    id="resSpeed"
+                    style="
+                      font-size: 13px;
+                      font-weight: 600;
+                      color: #10b981;
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advice -->
+            <div
+              id="adviceCard"
+              style="
+                border-radius: 12px;
+                padding: 14px;
+                border-left: 3px solid var(--sidebar-border);
+                background: var(--sidebar-bg);
+              "
+            >
+              <p style="font-size: 10px; color: var(--text-muted)">
+                <i
+                  class="fas fa-lightbulb"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Recommendation
+              </p>
+              <p
+                id="adviceText"
+                style="
+                  font-size: 13px;
+                  font-weight: 600;
+                  margin-top: 4px;
+                  color: var(--text-primary);
+                "
+              >
+                --
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ ROUTE PANEL ═══ -->
+        <div
+          id="routePanel"
+          style="
+            padding: 0 16px 20px;
+            display: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <div
+            class="glass"
+            style="
+              padding: 14px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <span
+              style="
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+              "
+            >
+              <i
+                class="fas fa-route"
+                style="margin-right: 4px; color: var(--iti-red)"
+              ></i>
+              Route Endpoints</span
+            >
+
+            <div
+              id="routeHint"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                border-radius: 8px;
+                padding: 10px 12px;
+                background: rgba(220, 38, 38, 0.06);
+                border: 1px solid rgba(220, 38, 38, 0.15);
+                color: var(--iti-red-light);
+              "
+            >
+              <span id="routeHintText">Click the map to place Start (A)</span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <div
+                  style="
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    background: #10b981;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #fff;
+                  "
+                >
+                  A
+                </div>
+                <div
+                  id="dispStart"
+                  style="
+                    flex: 1;
+                    background: var(--sidebar-bg);
+                    border: 1px solid var(--sidebar-border);
+                    border-radius: 8px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    font-family: ui-monospace, monospace;
+                    color: var(--text-muted);
+                  "
+                >
+                  Not set
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 8px">
+                <div
+                  style="
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    background: var(--iti-red);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: #fff;
+                  "
+                >
+                  B
+                </div>
+                <div
+                  id="dispEnd"
+                  style="
+                    flex: 1;
+                    background: var(--sidebar-bg);
+                    border: 1px solid var(--sidebar-border);
+                    border-radius: 8px;
+                    padding: 8px 12px;
+                    font-size: 11px;
+                    font-family: ui-monospace, monospace;
+                    color: var(--text-muted);
+                  "
+                >
+                  Not set
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px">
+              <label
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  flex-shrink: 0;
+                "
+              >
+                Segments:
+                <span
+                  id="segDisplay"
+                  class="grad-text-iti"
+                  style="font-weight: 700"
+                  >20</span
+                >
+              </label>
+              <input
+                type="range"
+                id="segments"
+                min="5"
+                max="40"
+                value="20"
+                style="flex: 1"
+              />
+            </div>
+
+            <div
+              style="
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 4px;
+                background: var(--sidebar-bg);
+                border-radius: 8px;
+                padding: 3px;
+              "
+            >
+              <button
+                class="strategyBtn"
+                data-strategy="fastest"
+                style="
+                  padding: 7px;
+                  font-size: 11px;
+                  border-radius: 6px;
+                  border: none;
+                  cursor: pointer;
+                  font-family: inherit;
+                  transition: all 0.2s;
+                "
+              >
+                <i
+                  class="fas fa-bolt"
+                  style="margin-right: 4px; font-size: 10px"
+                ></i>
+                Fastest
+              </button>
+              <button
+                class="strategyBtn"
+                data-strategy="safest"
+                style="
+                  padding: 7px;
+                  font-size: 11px;
+                  border-radius: 6px;
+                  border: none;
+                  cursor: pointer;
+                  font-family: inherit;
+                  transition: all 0.2s;
+                "
+              >
+                <i
+                  class="fas fa-shield-alt"
+                  style="margin-right: 4px; font-size: 10px"
+                ></i>
+                Safest
+              </button>
+            </div>
+
+            <div style="display: flex; gap: 8px">
+              <button
+                type="button"
+                onclick="
+                  event.preventDefault();
+                  analyzeRoute();
+                  return false;
+                "
+                id="analyzeBtn"
+                disabled
+                style="
+                  flex: 1;
+                  padding: 10px;
+                  background: var(--gradient-primary);
+                  border: none;
+                  border-radius: 8px;
+                  color: #fff;
+                  font-weight: 600;
+                  font-size: 13px;
+                  cursor: pointer;
+                  font-family: inherit;
+                  transition: all 0.2s;
+                  box-shadow: 0 4px 16px var(--iti-red-glow);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                  opacity: 0.4;
+                  cursor: not-allowed;
+                "
+                onmouseover="
+                  if (!this.disabled) this.style.transform = 'translateY(-1px)';
+                "
+                onmouseout="this.style.transform = 'none'"
+              >
+                <i class="fas fa-search"></i> Analyze Route
+              </button>
+              <button
+                onclick="resetRoute()"
+                style="
+                  padding: 10px 12px;
+                  background: var(--sidebar-card);
+                  border: 1px solid var(--sidebar-border);
+                  color: var(--text-secondary);
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  transition: all 0.2s;
+                "
+                onmouseover="this.style.borderColor = 'var(--iti-red)'"
+                onmouseout="this.style.borderColor = 'var(--sidebar-border)'"
+              >
+                <i class="fas fa-undo"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Route Progress -->
+          <div
+            id="routeProgress"
+            style="display: none"
+            class="glass"
+            style="padding: 12px"
+          >
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                color: var(--text-muted);
+                margin-bottom: 4px;
+              "
+            >
+              <span id="progLabel">Fetching geometry...</span>
+              <span id="progPct">0%</span>
+            </div>
+            <div
+              style="
+                width: 100%;
+                background: #2a2a2a;
+                border-radius: 4px;
+                height: 6px;
+                overflow: hidden;
+              "
+            >
+              <div
+                id="progBar"
+                class="grad-iti"
+                style="
+                  height: 100%;
+                  border-radius: 4px;
+                  transition: width 0.3s;
+                  width: 0%;
+                "
+              ></div>
+            </div>
+          </div>
+
+          <!-- Route Results -->
+          <div
+            id="routeResults"
+            style="
+              display: none;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <!-- Alt Routes -->
+            <div
+              id="altRoutesCard"
+              class="glass"
+              style="padding: 14px; display: none"
+            >
+              <p
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                  margin-bottom: 8px;
+                "
+              >
+                <i
+                  class="fas fa-random"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Routes Compared
+              </p>
+              <div
+                id="altRoutesList"
+                style="display: flex; flex-direction: column; gap: 4px"
+              ></div>
+            </div>
+
+            <!-- Traffic Distribution -->
+            <div
+              class="glass"
+              style="
+                padding: 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+              "
+            >
+              <span
+                style="
+                  font-size: 10px;
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.1em;
+                  color: var(--text-muted);
+                "
+              >
+                <i
+                  class="fas fa-chart-bar"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Traffic Distribution</span
+              >
+              <div style="display: flex; flex-direction: column; gap: 6px">
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 10px;
+                      height: 10px;
+                      border-radius: 2px;
+                      background: var(--hi);
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <span
+                    style="
+                      font-size: 11px;
+                      color: var(--text-muted);
+                      width: 50px;
+                    "
+                    >High</span
+                  >
+                  <div
+                    style="
+                      flex: 1;
+                      background: #2a2a2a;
+                      border-radius: 4px;
+                      height: 8px;
+                      overflow: hidden;
+                    "
+                  >
+                    <div
+                      id="barHigh"
+                      style="
+                        height: 100%;
+                        border-radius: 4px;
+                        background: var(--hi);
+                        transition: width 0.7s;
+                        width: 0%;
+                      "
+                    ></div>
+                  </div>
+                  <span
+                    id="pctHigh"
+                    style="
+                      font-size: 11px;
+                      width: 32px;
+                      text-align: right;
+                      font-family: ui-monospace, monospace;
+                      color: var(--hi);
+                    "
+                    >0%</span
+                  >
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 10px;
+                      height: 10px;
+                      border-radius: 2px;
+                      background: var(--md);
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <span
+                    style="
+                      font-size: 11px;
+                      color: var(--text-muted);
+                      width: 50px;
+                    "
+                    >Medium</span
+                  >
+                  <div
+                    style="
+                      flex: 1;
+                      background: #2a2a2a;
+                      border-radius: 4px;
+                      height: 8px;
+                      overflow: hidden;
+                    "
+                  >
+                    <div
+                      id="barMed"
+                      style="
+                        height: 100%;
+                        border-radius: 4px;
+                        background: var(--md);
+                        transition: width 0.7s;
+                        width: 0%;
+                      "
+                    ></div>
+                  </div>
+                  <span
+                    id="pctMed"
+                    style="
+                      font-size: 11px;
+                      width: 32px;
+                      text-align: right;
+                      font-family: ui-monospace, monospace;
+                      color: var(--md);
+                    "
+                    >0%</span
+                  >
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <div
+                    style="
+                      width: 10px;
+                      height: 10px;
+                      border-radius: 2px;
+                      background: var(--lo);
+                      flex-shrink: 0;
+                    "
+                  ></div>
+                  <span
+                    style="
+                      font-size: 11px;
+                      color: var(--text-muted);
+                      width: 50px;
+                    "
+                    >Low</span
+                  >
+                  <div
+                    style="
+                      flex: 1;
+                      background: #2a2a2a;
+                      border-radius: 4px;
+                      height: 8px;
+                      overflow: hidden;
+                    "
+                  >
+                    <div
+                      id="barLow"
+                      style="
+                        height: 100%;
+                        border-radius: 4px;
+                        background: var(--lo);
+                        transition: width 0.7s;
+                        width: 0%;
+                      "
+                    ></div>
+                  </div>
+                  <span
+                    id="pctLow"
+                    style="
+                      font-size: 11px;
+                      width: 32px;
+                      text-align: right;
+                      font-family: ui-monospace, monospace;
+                      color: var(--lo);
+                    "
+                    >0%</span
+                  >
+                </div>
+              </div>
+
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  gap: 8px;
+                  padding-top: 4px;
+                "
+              >
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">
+                    Distance
+                  </p>
+                  <p
+                    id="routeDist"
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      color: var(--text-primary);
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">
+                    Avg Traffic
+                  </p>
+                  <p
+                    id="routeAvg"
+                    class="grad-text-iti"
+                    style="font-size: 13px; font-weight: 700; margin-top: 2px"
+                  >
+                    --
+                  </p>
+                </div>
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">
+                    Avg Risk
+                  </p>
+                  <p
+                    id="routeRiskAvg"
+                    style="
+                      font-size: 13px;
+                      font-weight: 700;
+                      color: #f59e0b;
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Arrival -->
+            <div class="glass" style="padding: 14px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 8px;
+                "
+              >
+                <span
+                  style="
+                    font-size: 10px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    color: var(--text-muted);
+                  "
+                >
+                  <i
+                    class="fas fa-clock"
+                    style="margin-right: 4px; color: var(--iti-red)"
+                  ></i>
+                  Arrival</span
+                >
+                <span
+                  id="etaDelay"
+                  style="
+                    font-size: 10px;
+                    padding: 2px 8px;
+                    border-radius: 999px;
+                    background: var(--sidebar-card);
+                    color: var(--text-secondary);
+                  "
+                  >on time</span
+                >
+              </div>
+              <div
+                style="
+                  display: grid;
+                  grid-template-columns: 1fr 1fr 1fr;
+                  gap: 8px;
+                "
+              >
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">ETA</p>
+                  <p
+                    id="etaClock"
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      color: #10b981;
+                      margin-top: 2px;
+                    "
+                  >
+                    --:--
+                  </p>
+                </div>
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">
+                    Travel
+                  </p>
+                  <p
+                    id="etaDur"
+                    class="grad-text-iti"
+                    style="font-size: 15px; font-weight: 700; margin-top: 2px"
+                  >
+                    --
+                  </p>
+                </div>
+                <div
+                  style="
+                    text-align: center;
+                    background: var(--sidebar-bg);
+                    border-radius: 8px;
+                    padding: 8px;
+                  "
+                >
+                  <p style="font-size: 10px; color: var(--text-muted)">
+                    Free flow
+                  </p>
+                  <p
+                    id="etaFree"
+                    style="
+                      font-size: 15px;
+                      font-weight: 700;
+                      color: var(--text-secondary);
+                      margin-top: 2px;
+                    "
+                  >
+                    --
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Turn-by-turn -->
+            <div class="glass" style="padding: 14px">
+              <div
+                style="
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  margin-bottom: 8px;
+                "
+              >
+                <span
+                  style="
+                    font-size: 10px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    color: var(--text-muted);
+                  "
+                >
+                  <i
+                    class="fas fa-directions"
+                    style="margin-right: 4px; color: var(--iti-red)"
+                  ></i>
+                  Turn-by-turn</span
+                >
+                <span
+                  id="stepCount"
+                  style="font-size: 10px; color: var(--text-muted)"
+                  >0 steps</span
+                >
+              </div>
+              <ol
+                id="stepsList"
+                class="custom-scroll"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  gap: 6px;
+                  max-height: 280px;
+                  overflow-y: auto;
+                  padding-right: 4px;
+                "
+              ></ol>
+            </div>
+
+            <!-- Verdict -->
+            <div
+              id="verdictCard"
+              style="
+                border-radius: 12px;
+                padding: 14px;
+                border-left: 3px solid var(--sidebar-border);
+                background: var(--sidebar-bg);
+              "
+            >
+              <p style="font-size: 10px; color: var(--text-muted)">
+                <i
+                  class="fas fa-clipboard-list"
+                  style="margin-right: 4px; color: var(--iti-red)"
+                ></i>
+                Overall Assessment
+              </p>
+              <p
+                id="verdictText"
+                style="
+                  font-size: 14px;
+                  font-weight: 700;
+                  margin-top: 4px;
+                  color: var(--text-primary);
+                "
+              >
+                --
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ GRID PANEL ═══ -->
+        <div
+          id="gridPanel"
+          style="
+            padding: 0 16px 20px;
+            display: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+          "
+        >
+          <div
+            class="glass"
+            style="
+              padding: 14px;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+            "
+          >
+            <span
+              style="
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+                color: var(--text-muted);
+              "
+            >
+              <i
+                class="fas fa-th"
+                style="margin-right: 4px; color: var(--iti-red)"
+              ></i>
+              Hexagonal Risk Grid</span
+            >
+            <p
+              style="
+                font-size: 11px;
+                color: var(--text-secondary);
+                line-height: 1.5;
+              "
+            >
+              Aggregate predictions over a hex grid covering the current map
+              view. Each cell is colored by predicted traffic congestion.
             </p>
-            <p class="text-xs text-gray-500 mt-2">
-              Probability: <span id="trafficProb">--</span>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <label
+                style="
+                  font-size: 11px;
+                  color: var(--text-muted);
+                  flex-shrink: 0;
+                "
+              >
+                Resolution:
+                <span
+                  id="hexResDisplay"
+                  class="grad-text-iti"
+                  style="font-weight: 700"
+                  >14</span
+                >
+              </label>
+              <input
+                type="range"
+                id="hexRes"
+                min="6"
+                max="22"
+                value="14"
+                style="flex: 1"
+              />
+            </div>
+            <div style="display: flex; gap: 8px">
+              <button
+                type="button"
+                onclick="
+                  event.preventDefault();
+                  buildHexGrid();
+                  return false;
+                "
+                id="hexBtn"
+                style="
+                  flex: 1;
+                  padding: 10px;
+                  background: var(--gradient-primary);
+                  border: none;
+                  border-radius: 8px;
+                  color: #fff;
+                  font-weight: 600;
+                  font-size: 13px;
+                  cursor: pointer;
+                  font-family: inherit;
+                  transition: all 0.2s;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  gap: 6px;
+                "
+              >
+                <i class="fas fa-th"></i> Build Grid
+              </button>
+              <button
+                onclick="clearGrid()"
+                style="
+                  padding: 10px 12px;
+                  background: var(--sidebar-card);
+                  border: 1px solid var(--sidebar-border);
+                  color: var(--text-secondary);
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 13px;
+                  transition: all 0.2s;
+                "
+                onmouseover="this.style.borderColor = 'var(--iti-red)'"
+                onmouseout="this.style.borderColor = 'var(--sidebar-border)'"
+              >
+                Clear
+              </button>
+            </div>
+            <div
+              id="hexProgress"
+              style="font-size: 11px; color: var(--text-muted); display: none"
+            ></div>
+            <div
+              id="hexStats"
+              style="
+                display: none;
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: 8px;
+                padding-top: 4px;
+              "
+            >
+              <div
+                style="
+                  text-align: center;
+                  background: var(--sidebar-bg);
+                  border-radius: 8px;
+                  padding: 8px;
+                "
+              >
+                <p style="font-size: 10px; color: var(--text-muted)">Cells</p>
+                <p
+                  id="hexTotal"
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: var(--text-primary);
+                    margin-top: 2px;
+                  "
+                >
+                  --
+                </p>
+              </div>
+              <div
+                style="
+                  text-align: center;
+                  background: var(--sidebar-bg);
+                  border-radius: 8px;
+                  padding: 8px;
+                "
+              >
+                <p style="font-size: 10px; color: var(--text-muted)">High</p>
+                <p
+                  id="hexHigh"
+                  style="
+                    font-size: 13px;
+                    font-weight: 700;
+                    color: var(--iti-red-light);
+                    margin-top: 2px;
+                  "
+                >
+                  --
+                </p>
+              </div>
+              <div
+                style="
+                  text-align: center;
+                  background: var(--sidebar-bg);
+                  border-radius: 8px;
+                  padding: 8px;
+                "
+              >
+                <p style="font-size: 10px; color: var(--text-muted)">Avg</p>
+                <p
+                  id="hexAvg"
+                  class="grad-text-iti"
+                  style="font-size: 13px; font-weight: 700; margin-top: 2px"
+                >
+                  --
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="glass-soft" style="padding: 10px 12px">
+            <p
+              style="
+                font-size: 10px;
+                color: var(--text-muted);
+                line-height: 1.5;
+              "
+            >
+              <i
+                class="fas fa-info-circle"
+                style="margin-right: 4px; color: var(--iti-red)"
+              ></i>
+              Zoom to your city, then build the grid. Use
+              <span class="kbd">Esc</span> to reset,
+              <span class="kbd">Space</span> for time-lapse.
             </p>
           </div>
         </div>
       </aside>
 
-      <!-- Map Area -->
-      <main class="flex-1 relative bg-gray-950">
-        <div id="map" class="w-full h-full"></div>
+      <!-- ═══════════ MAP ═══════════ -->
+      <main style="flex: 1; position: relative; overflow: hidden">
+        <div id="map" style="width: 100%; height: 100%"></div>
 
-        <!-- Map Stats -->
-        <div class="absolute top-4 right-4 z-10 space-y-2">
+        <!-- Map Overlay (loading) -->
+        <div
+          id="mapOverlay"
+          style="
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            z-index: 20;
+            display: none;
+            align-items: center;
+            justify-content: center;
+          "
+        >
           <div
-            class="bg-gray-900/80 backdrop-blur p-3 rounded-lg border border-gray-700 text-center"
+            style="
+              background: #fff;
+              border: 1px solid #e5e5e5;
+              border-radius: 16px;
+              padding: 28px;
+              text-align: center;
+              box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+              min-width: 220px;
+            "
           >
-            <p class="text-xs text-gray-400">Predictions</p>
-            <p id="totalPredictions" class="text-xl font-bold text-cyan-400">
-              0
+            <div
+              class="spinner"
+              style="
+                width: 32px;
+                height: 32px;
+                border-width: 3px;
+                margin: 0 auto 14px;
+              "
+            ></div>
+            <p
+              id="overlayTitle"
+              style="color: #171717; font-size: 14px; font-weight: 600"
+            >
+              Analyzing...
+            </p>
+            <p
+              id="overlaySub"
+              style="color: #a3a3a3; font-size: 12px; margin-top: 4px"
+            >
+              Please wait
             </p>
           </div>
         </div>
 
-        <!-- Hint -->
+        <!-- Map Hint -->
         <div
-          id="clickHint"
-          class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 bg-gray-900/90 backdrop-blur px-6 py-3 rounded-full border border-gray-700 text-sm text-gray-300 transition-opacity duration-500"
+          id="mapHint"
+          class="map-card"
+          style="
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            pointer-events: none;
+            padding: 8px 18px;
+            border-radius: 999px;
+            font-size: 12px;
+            color: #525252;
+          "
         >
-          💡 Click anywhere on the map to auto-fill coordinates
+          <i
+            class="fas fa-map-pin"
+            style="color: var(--iti-red); margin-right: 6px"
+          ></i>
+          Click map to predict at a point
         </div>
+
+        <!-- Predictions Counter -->
+        <div
+          class="map-card"
+          style="
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 10;
+            padding: 10px 14px;
+            text-align: center;
+          "
+        >
+          <p style="font-size: 10px; color: #a3a3a3">
+            <i
+              class="fas fa-chart-line"
+              style="color: var(--iti-red); margin-right: 3px"
+            ></i>
+            Predictions
+          </p>
+          <p
+            id="predCounter"
+            class="grad-text-iti"
+            style="font-size: 20px; font-weight: 800"
+          >
+            0
+          </p>
+        </div>
+
+        <!-- Legend -->
+        <div
+          class="map-card"
+          style="
+            position: absolute;
+            bottom: 24px;
+            right: 12px;
+            z-index: 10;
+            padding: 12px;
+            font-size: 11px;
+          "
+        >
+          <p
+            style="
+              font-weight: 600;
+              color: #525252;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+              font-size: 10px;
+              margin-bottom: 8px;
+            "
+          >
+            Traffic Level
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 5px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div
+                style="
+                  width: 24px;
+                  height: 10px;
+                  border-radius: 3px;
+                  background: var(--hi);
+                "
+              ></div>
+              <span style="color: #525252">High</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div
+                style="
+                  width: 24px;
+                  height: 10px;
+                  border-radius: 3px;
+                  background: var(--md);
+                "
+              ></div>
+              <span style="color: #525252">Medium</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div
+                style="
+                  width: 24px;
+                  height: 10px;
+                  border-radius: 3px;
+                  background: var(--lo);
+                "
+              ></div>
+              <span style="color: #525252">Low</span>
+            </div>
+          </div>
+          <div
+            style="
+              border-top: 1px solid #e5e5e5;
+              margin-top: 8px;
+              padding-top: 8px;
+            "
+          >
+            <label
+              style="
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                font-size: 11px;
+                color: #525252;
+              "
+            >
+              <input
+                type="checkbox"
+                id="heatToggle"
+                onchange="toggleHeatmap()"
+                style="
+                  accent-color: var(--iti-red);
+                  width: 12px;
+                  height: 12px;
+                  cursor: pointer;
+                "
+              />
+              <i
+                class="fas fa-fire"
+                style="color: var(--iti-red); font-size: 10px"
+              ></i>
+              Heatmap overlay
+            </label>
+          </div>
+        </div>
+
+        <!-- Toast Box -->
+        <div
+          id="toastBox"
+          style="
+            position: absolute;
+            bottom: 24px;
+            left: 12px;
+            z-index: 30;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            pointer-events: none;
+          "
+        ></div>
       </main>
     </div>
 
-    <script>
-      let map, markers, heatLayer;
-      let predictionCount = 0;
-      let isApiOnline = false;
-      const API_BASE = "http://localhost:8000";
+    <div id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
+    <button
+      id="mobileToggle"
+      type="button"
+      onclick="toggleSidebar()"
+      aria-label="Toggle sidebar"
+    >
+      <i class="fas fa-bars"></i>
+    </button>
 
-      // Initialize Map
+    <!-- ═══════════ FOOTER ═══════════ -->
+    <footer
+      style="
+        height: 36px;
+        border-top: 1px solid var(--sidebar-border);
+        background: var(--gradient-sidebar);
+        padding: 0 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 10px;
+        color: var(--text-muted);
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <img
+          src="./iti-logo.png"
+          alt="ITI"
+          style="height: 22px; width: auto; mix-blend-mode: lighten"
+        />
+        <span class="hidden sm:inline" style="color: var(--sidebar-border)"
+          >|</span
+        >
+        <span class="hidden sm:inline"
+          >Information Technology Institute · GIS Track</span
+        >
+      </div>
+      <div class="hidden md:block" style="text-align: center">
+        &copy; <span id="copyYear">2026</span>
+        <span class="grad-text-iti" style="font-weight: 600"
+          >Abdulrahman Omar · Muhammed Ashraf · Ahmed Salah</span
+        >
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px">
+        <span class="chip">Big Data</span>
+        <span class="chip">ML</span>
+        <span class="chip">GIS</span>
+      </div>
+    </footer>
+
+    <script>
+      const CFG = {
+        API: "http://localhost:8000",
+        OSRM: "https://router.project-osrm.org",
+        OSRM_BACKUPS: [
+          "https://router.project-osrm.org",
+          "https://routing.openstreetmap.de/routed-car",
+        ],
+        NOM: "https://nominatim.openstreetmap.org",
+        WX: "https://api.open-meteo.com/v1/forecast",
+      };
+
+      const TRAF_COLOR = { High: "#ef4444", Medium: "#f59e0b", Low: "#10b981" };
+
+      const S = {
+        mode: "predict",
+        isApi: false,
+        hasSeverity: false,
+        rStart: null,
+        rEnd: null,
+        routeDist: 0,
+        routeDur: 0,
+        routeSteps: [],
+        predCount: 0,
+        isPlaying: false,
+        playTimer: null,
+        travelMode: "vehicle",
+        strategy: "fastest",
+        closures: [],
+        signals: [],
+        signalsOn: true,
+        closuresOn: false,
+        hexLayer: null,
+      };
+
+      const MODE_RISK = { vehicle: 1.0, cyclist: 1.25, pedestrian: 1.45 };
+      let map, markersLayer, routeLayer, heatLayer, whatIfLayer;
+      let markerA = null,
+        markerB = null;
+      const el = (id) => document.getElementById(id);
+
+      // ────────── MAP INIT
       function initMap() {
-        map = L.map("map", { center: [34.05, -118.24], zoom: 12 });
+        map = L.map("map", {
+          center: [30.0444, 31.2357],
+          zoom: 13,
+          zoomControl: false,
+        });
+        L.control.zoom({ position: "bottomright" }).addTo(map);
         L.tileLayer(
           "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
           {
-            attribution: "© OpenStreetMap",
+            attribution: "© OpenStreetMap © CartoDB",
+            maxZoom: 19,
           },
         ).addTo(map);
-
+        markersLayer = L.layerGroup().addTo(map);
+        routeLayer = L.layerGroup().addTo(map);
+        whatIfLayer = L.layerGroup().addTo(map);
         heatLayer = L.heatLayer([], {
-          radius: 25,
-          blur: 20,
-          maxZoom: 15,
-        }).addTo(map);
-        markers = L.layerGroup().addTo(map);
+          radius: 35,
+          blur: 25,
+          maxZoom: 17,
+          max: 1.0,
+          minOpacity: 0.45,
+          gradient: {
+            0.0: "#10b981",
+            0.4: "#f59e0b",
+            0.7: "#ef4444",
+            1.0: "#DC2626",
+          },
+        });
+        S.hexLayer = L.layerGroup().addTo(map);
+        map.on("click", onMapClick);
+      }
 
-        map.on("click", function (e) {
-          document.getElementById("latitude").value = e.latlng.lat.toFixed(4);
-          document.getElementById("longitude").value = e.latlng.lng.toFixed(4);
-          // Hide hint after first click
-          document.getElementById("clickHint").style.opacity = "0";
+      function onMapClick(e) {
+        const { lat, lng } = e.latlng;
+        if (S.mode === "predict") {
+          el("latitude").value = lat.toFixed(4);
+          el("longitude").value = lng.toFixed(4);
+          reverseGeocode(lat, lng, "ptStreet", "ptArea");
+          setMapHint("");
+          if (S.closuresOn) addClosure(lat, lng);
+          if (S.signalsOn) addSignalMark(lat, lng);
+          toast(`Point set · Model: ${modelLabel()}`, "info");
+        } else if (S.mode === "route") {
+          handleRouteClick({ lat, lng });
+          toast(`Route point · Model: ${modelLabel()}`, "info");
+        } else if (S.mode === "grid") {
+          toast(`Grid mode · Model: ${modelLabel()}`, "info");
+        }
+      }
+
+      function setMode(m) {
+        S.mode = m;
+        el("pointPanel").style.display = m === "predict" ? "flex" : "none";
+        el("routePanel").style.display = m === "route" ? "flex" : "none";
+        el("gridPanel").style.display = m === "grid" ? "flex" : "none";
+        ["tabPoint", "tabRoute", "tabGrid"].forEach(
+          (id) =>
+            (el(id).className =
+              "flex-1 py-2 text-sm font-semibold rounded-lg transition tab-off"),
+        );
+        const map_ = {
+          predict: "tabPoint",
+          route: "tabRoute",
+          grid: "tabGrid",
+        };
+        el(map_[m]).className =
+          "flex-1 py-2 text-sm font-semibold rounded-lg transition tab-on";
+        setMapHint(
+          m === "route"
+            ? '<i class="fas fa-play-circle" style="color:#10b981;margin-right:6px"></i> Click to place Start (A)'
+            : m === "grid"
+              ? '<i class="fas fa-th" style="color:var(--iti-red);margin-right:6px"></i> Use the Build Grid button'
+              : '<i class="fas fa-map-pin" style="color:var(--iti-red);margin-right:6px"></i> Click map to predict',
+        );
+        if (m !== "route") resetRoute();
+
+        // Auto-scroll the sidebar to the active panel's inputs
+        const panelId =
+          m === "predict"
+            ? "pointPanel"
+            : m === "route"
+              ? "routePanel"
+              : "gridPanel";
+        const panel = el(panelId);
+        const aside = el("sidebar");
+        if (panel && aside) {
+          const tabsH = el("stickyTabs")?.offsetHeight || 0;
+          requestAnimationFrame(() => {
+            aside.scrollTo({
+              top: Math.max(0, panel.offsetTop - tabsH - 8),
+              behavior: "smooth",
+            });
+          });
+        }
+        // Toast which model will be used in this mode
+        toast(`Mode: ${m} · Model: ${modelLabel()}`, "info");
+      }
+
+      function modelLabel() {
+        if (S.isApi && S.hasSeverity)
+          return "traffic_model.pkl + severity_model.pkl (XGBoost)";
+        if (S.isApi) return "traffic_model.pkl (XGBoost) · severity: simulator";
+        return "Deterministic simulator (API offline)";
+      }
+
+      function toggleSidebar(force) {
+        const sb = el("sidebar");
+        if (!sb) return;
+        const open =
+          force === undefined ? !sb.classList.contains("open") : force;
+        sb.classList.toggle("open", open);
+      }
+
+      function initSidebarResizer() {
+        const sb = el("sidebar");
+        const handle = el("sidebarResizer");
+        if (!sb || !handle) return;
+        const saved = parseInt(localStorage.getItem("sidebarWidth") || "0", 10);
+        if (saved && saved >= 280 && saved <= 720)
+          sb.style.width = saved + "px";
+        let dragging = false;
+        handle.addEventListener("mousedown", (e) => {
+          dragging = true;
+          handle.classList.add("active");
+          document.body.classList.add("resizing");
+          e.preventDefault();
+        });
+        document.addEventListener("mousemove", (e) => {
+          if (!dragging) return;
+          const w = Math.min(720, Math.max(280, e.clientX));
+          sb.style.width = w + "px";
+          if (typeof map !== "undefined" && map && map.invalidateSize)
+            window.map.invalidateSize();
+        });
+        document.addEventListener("mouseup", () => {
+          if (!dragging) return;
+          dragging = false;
+          handle.classList.remove("active");
+          document.body.classList.remove("resizing");
+          localStorage.setItem("sidebarWidth", parseInt(sb.style.width, 10));
+          if (typeof map !== "undefined" && map && map.invalidateSize)
+            setTimeout(() => window.map.invalidateSize(), 50);
         });
       }
 
-      // Helper: Get rough area from Lat/Lng
-      function getArea(lat, lng) {
-        if (lat > 40) return "North US";
-        if (lat > 35) return "Central US";
-        return "South US";
+      // ────────── WHAT-IF
+      function toggleSwitch(id) {
+        const t = el(id);
+        t.classList.toggle("on");
+        if (id === "tgClosure") S.closuresOn = t.classList.contains("on");
+        if (id === "tgSignal") S.signalsOn = t.classList.contains("on");
+        syncWhatIfBadge();
+      }
+      function syncWhatIfBadge() {
+        const total = S.closures.length + S.signals.length;
+        el("whatIfBadge").textContent = total
+          ? `${S.closures.length} closure(s), ${S.signals.length} signal(s)`
+          : "No edits";
+      }
+      function addClosure(lat, lng) {
+        S.closures.push({ lat, lng });
+        L.circle([lat, lng], {
+          radius: 120,
+          color: "#ef4444",
+          weight: 2,
+          fillColor: "#ef4444",
+          fillOpacity: 0.2,
+          dashArray: "4 4",
+        })
+          .addTo(whatIfLayer)
+          .bindTooltip("Simulated closure");
+        syncWhatIfBadge();
+      }
+      function addSignalMark(lat, lng) {
+        S.signals.push({ lat, lng });
+        L.circleMarker([lat, lng], {
+          radius: 6,
+          fillColor: "#fbbf24",
+          color: "#fff",
+          weight: 1.5,
+          fillOpacity: 0.9,
+        })
+          .addTo(whatIfLayer)
+          .bindTooltip("Simulated signal");
+        syncWhatIfBadge();
+      }
+      function nearClosure(lat, lng) {
+        return S.closures.some((c) => haversine({ lat, lng }, c) < 200);
       }
 
-      // Check API
-      async function checkApi() {
-        try {
-          const res = await fetch(`${API_BASE}/`);
-          const data = await res.json();
-          isApiOnline = data.models_loaded;
-          document.getElementById("statusDot").className =
-            `w-2.5 h-2.5 rounded-full ${isApiOnline ? "bg-green-500" : "bg-yellow-500"} animate-pulse`;
-          document.getElementById("statusText").textContent = isApiOnline
-            ? "Models Active"
-            : "Demo Mode";
-        } catch (e) {
-          document.getElementById("statusText").textContent = "Offline (Demo)";
+      // ────────── ROUTE FLOW
+      function handleRouteClick({ lat, lng }) {
+        if (!S.rStart) {
+          S.rStart = { lat, lng };
+          if (markerA) map.removeLayer(markerA);
+          markerA = L.marker([lat, lng], {
+            icon: endpointIcon("A", "#10b981"),
+          }).addTo(map);
+          el("dispStart").textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          setRouteHint(
+            "Now click to place End (B)",
+            "rgba(220,38,38,.06)",
+            "rgba(220,38,38,.15)",
+            "var(--iti-red-light)",
+          );
+          setMapHint(
+            '<i class="fas fa-circle" style="color:var(--iti-red);margin-right:6px"></i> Click to place End (B)',
+          );
+        } else if (!S.rEnd) {
+          S.rEnd = { lat, lng };
+          if (markerB) map.removeLayer(markerB);
+          markerB = L.marker([lat, lng], {
+            icon: endpointIcon("B", "#DC2626"),
+          }).addTo(map);
+          el("dispEnd").textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+          setRouteHint(
+            "Both set — analyzing...",
+            "rgba(16,185,129,.06)",
+            "rgba(16,185,129,.15)",
+            "#10b981",
+          );
+          setMapHint("");
+          el("analyzeBtn").disabled = false;
+          el("analyzeBtn").style.opacity = "1";
+          el("analyzeBtn").style.cursor = "pointer";
         }
       }
-
-      // Main Prediction Function
-      async function makePrediction() {
-        const btn = document.getElementById("predictBtn");
-        btn.disabled = true;
-        btn.textContent = "⏳ Analyzing...";
-
-        const payload = {
-          latitude: parseFloat(document.getElementById("latitude").value),
-          longitude: parseFloat(document.getElementById("longitude").value),
-          temperature: parseFloat(document.getElementById("temperature").value),
-          humidity: parseFloat(document.getElementById("humidity").value),
-          pressure: 29.9,
-          visibility: parseFloat(document.getElementById("visibility").value),
-          wind_speed: parseFloat(document.getElementById("wind_speed").value),
-          precipitation: 0.0,
-          hour: parseInt(document.getElementById("hour").value),
-          weather_condition: document.getElementById("weather_condition").value,
-          road_type: document.getElementById("road_type").value,
-        };
-
-        let result;
-        if (isApiOnline) {
-          try {
-            const res = await fetch(`${API_BASE}/predict`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            });
-            result = await res.json();
-          } catch (e) {
-            result = simulatePrediction(payload);
-          }
-        } else {
-          result = simulatePrediction(payload);
-        }
-
-        displayResults(result, payload);
-        addMapMarker(result, payload);
-
-        predictionCount++;
-        document.getElementById("totalPredictions").textContent =
-          predictionCount;
-
-        btn.disabled = false;
-        btn.textContent = "🔮 Get Prediction";
+      function endpointIcon(label, bg) {
+        return L.divIcon({
+          html: `<div style="background:${bg};color:#fff;font-weight:700;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;border:2px solid rgba(255,255,255,.85);box-shadow:0 2px 10px rgba(0,0,0,.4)">${label}</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          className: "",
+        });
       }
-
-      function displayResults(result, payload) {
-        document.getElementById("resultsPanel").classList.remove("hidden");
-
-        // Road & Location Details (NEW)
-        document.getElementById("resStreetName").textContent =
-          document.getElementById("streetName").value || "Unknown Segment";
-        document.getElementById("resArea").textContent = getArea(
-          payload.latitude,
-          payload.longitude,
+      function resetRoute() {
+        S.rStart = S.rEnd = null;
+        if (markerA) {
+          map.removeLayer(markerA);
+          markerA = null;
+        }
+        if (markerB) {
+          map.removeLayer(markerB);
+          markerB = null;
+        }
+        routeLayer.clearLayers();
+        el("dispStart").textContent = "Not set";
+        el("dispEnd").textContent = "Not set";
+        el("analyzeBtn").disabled = true;
+        el("analyzeBtn").style.opacity = ".4";
+        el("analyzeBtn").style.cursor = "not-allowed";
+        el("routeResults").style.display = "none";
+        el("routeProgress").style.display = "none";
+        setRouteHint(
+          "Click the map to place Start (A)",
+          "rgba(220,38,38,.06)",
+          "rgba(220,38,38,.15)",
+          "var(--iti-red-light)",
         );
-        document.getElementById("resRoadType").textContent = payload.road_type;
-
-        // Fetch actual width/speed returned from backend model
-        document.getElementById("resWidth").textContent =
-          result.details.road_width + " meters";
-        document.getElementById("resSpeed").textContent =
-          result.details.speed_limit + " mph";
-
-        // Accident Risk
-        const prob = result.accident_probability;
-        document.getElementById("accidentProb").textContent =
-          (prob * 100).toFixed(1) + "%";
-        document.getElementById("accidentBar").style.width = prob * 100 + "%";
-
-        const riskEl = document.getElementById("riskLevel");
-        riskEl.textContent = "⚠️ " + result.risk_level + " Risk";
-        riskEl.className = `text-lg font-bold mt-2 ${result.risk_level === "High" ? "text-red-500" : result.risk_level === "Medium" ? "text-yellow-400" : "text-green-400"}`;
-
-        // Traffic
-        const trafEl = document.getElementById("trafficLevel");
-        trafEl.textContent =
-          result.traffic_level === "High"
-            ? "🔴 High Congestion"
-            : "🟢 Low Traffic";
-        document.getElementById("trafficProb").textContent =
-          (result.traffic_probability * 100).toFixed(1) + "%";
+        setMapHint(
+          '<i class="fas fa-play-circle" style="color:#10b981;margin-right:6px"></i> Click to place Start (A)',
+        );
+      }
+      function setRouteHint(t, bg, border, color) {
+        el("routeHintText").textContent = t;
+        el("routeHint").style.background = bg;
+        el("routeHint").style.borderColor = border;
+        el("routeHint").style.color = color;
       }
 
-      function addMapMarker(result, payload) {
-        const prob = result.accident_probability;
-        const color =
-          prob >= 0.6 ? "#ef4444" : prob >= 0.3 ? "#facc15" : "#22c55e";
+      // ────────── ROUTE ANALYSIS
+      async function analyzeRoute() {
+        if (!S.rStart || !S.rEnd) return;
+        const btn = el("analyzeBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Analyzing...';
+        toast(`Analyzing route with: ${modelLabel()}`, "info");
+        routeLayer.clearLayers();
+        el("routeResults").style.display = "none";
+        const n = parseInt(el("segments").value),
+          cond = getConditions();
+        let routes = [];
+        // Hard safety: hide overlay after 9s no matter what so it never blocks the UI
+        const hardKill = setTimeout(() => hideOverlay(), 9000);
+        try {
+          let data = null;
+          // 1) API server-side proxy first (bypasses browser CORS)
+          try {
+            const proxy =
+              `${CFG.API}/route?start_lat=${S.rStart.lat}&start_lng=${S.rStart.lng}` +
+              `&end_lat=${S.rEnd.lat}&end_lng=${S.rEnd.lng}`;
+            const r = await fetchTimed(proxy, 7000);
+            if (r.ok) {
+              const d = await r.json();
+              if (d && d.code === "Ok" && Array.isArray(d.routes)) data = d;
+            }
+          } catch (_) {}
+          // 2) Direct OSRM mirrors as fallback (only works if no CORS)
+          if (!data) {
+            const path = `/route/v1/driving/${S.rStart.lng},${S.rStart.lat};${S.rEnd.lng},${S.rEnd.lat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
+            const tryOne = async (base) => {
+              const r = await fetchTimed(base + path, 4000);
+              if (!r.ok) throw new Error("HTTP " + r.status);
+              const d = await r.json();
+              if (!d || d.code !== "Ok" || !Array.isArray(d.routes))
+                throw new Error("bad");
+            };
+            data = await Promise.any(CFG.OSRM_BACKUPS.map(tryOne));
+          } // No else here, as data might have been set by proxy
+          if (!data) throw new Error("no routing source");
+          routes = data.routes.map((r) => ({
+            coords: r.geometry.coordinates,
+            distance: r.distance,
+            duration: r.duration,
+            steps: r.legs?.[0]?.steps || [],
+          }));
+          hideOverlay();
+          toast(`Routing returned ${routes.length} option(s)`, "success");
+        } catch (err) {
+          console.warn("Routing unavailable:", err);
+          routes = [
+            {
+              coords: lerpCoords(S.rStart, S.rEnd, 25),
+              distance: haversine(S.rStart, S.rEnd),
+              duration: haversine(S.rStart, S.rEnd) / 13.9,
+              steps: [],
+            },
+          ];
+          hideOverlay();
+          toast("OSRM unavailable — straight-line fallback", "warn");
+        } finally {
+          clearTimeout(hardKill);
+        }
+        showProgress("Scoring routes...");
+        const scored = [];
+        let done = 0,
+          totalWp = routes.reduce(
+            (a, r) => a + Math.min(r.coords.length, n + 1),
+            0,
+          );
+        for (let i = 0; i < routes.length; i++) {
+          const pts = sampleCoords(routes[i].coords, n + 1);
+          const tProbs = new Array(pts.length),
+            sProbs = new Array(pts.length);
+          await Promise.all(
+            pts.map((pt, j) =>
+              getPointPred(pt[1], pt[0], cond).then((pr) => {
+                tProbs[j] = pr.traffic_probability;
+                sProbs[j] = pr.accident_probability ?? 0;
+                done++;
+                updateProgress(done, totalWp);
+              }),
+            ),
+          );
+          scored.push({
+            ...routes[i],
+            pts,
+            tProbs,
+            sProbs,
+            avgT: tProbs.reduce((a, b) => a + b, 0) / tProbs.length,
+            avgS: sProbs.reduce((a, b) => a + b, 0) / sProbs.length,
+          });
+        }
+        hideProgress();
+        const chosen =
+          S.strategy === "safest"
+            ? scored.reduce((a, b) =>
+                a.avgT + a.avgS <= b.avgT + b.avgS ? a : b,
+              )
+            : scored[0];
+        S.routeDist = chosen.distance;
+        S.routeDur = chosen.duration;
+        S.routeSteps = chosen.steps;
+        renderAltRoutes(scored, chosen);
+        const results = [];
+        for (let i = 0; i < chosen.pts.length - 1; i++) {
+          let tp = (chosen.tProbs[i] + chosen.tProbs[i + 1]) / 2;
+          const sp = (chosen.sProbs[i] + chosen.sProbs[i + 1]) / 2;
+          const midLat = (chosen.pts[i][1] + chosen.pts[i + 1][1]) / 2;
+          const midLng = (chosen.pts[i][0] + chosen.pts[i + 1][0]) / 2;
+          if (nearClosure(midLat, midLng)) tp = 0.95;
+          results.push({
+            tp,
+            sp,
+            p0: [chosen.pts[i][1], chosen.pts[i][0]],
+            p1: [chosen.pts[i + 1][1], chosen.pts[i + 1][0]],
+          });
+        }
+        drawSegments(results);
+        showRouteStats(results);
+        fitBounds(chosen.pts);
+        S.predCount += chosen.pts.length;
+        syncCounters();
+        toast(`Route analyzed (${S.strategy})`, "success");
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> Analyze Route';
+      }
 
-        L.circleMarker([payload.latitude, payload.longitude], {
+      function renderAltRoutes(scored, chosen) {
+        if (scored.length <= 1) {
+          el("altRoutesCard").style.display = "none";
+          return;
+        }
+        el("altRoutesCard").style.display = "";
+        const list = el("altRoutesList");
+        list.innerHTML = "";
+        scored.forEach((r, i) => {
+          const isChosen = r === chosen;
+          const div = document.createElement("div");
+          div.style.cssText = `display:flex;align-items:center;justify-content:space-between;font-size:11px;padding:6px 10px;border-radius:6px;border:1px solid ${isChosen ? "rgba(220,38,38,.3)" : "var(--sidebar-border)"};background:${isChosen ? "var(--iti-red-subtle)" : "var(--sidebar-card)"};color:${isChosen ? "var(--iti-red-light)" : "var(--text-secondary)"}`;
+          div.innerHTML = `<span>${isChosen ? '<i class="fas fa-star" style="color:var(--iti-red);margin-right:4px;font-size:9px"></i>' : ""}Route ${i + 1}</span><span style="font-family:ui-monospace,monospace">${(r.distance / 1000).toFixed(1)} km · ${fmtDur(r.duration)}</span>`;
+          list.appendChild(div);
+        });
+      }
+
+      function drawSegments(results) {
+        routeLayer.clearLayers();
+        results.forEach(({ tp, p0, p1 }) => {
+          const level = tp >= 0.65 ? "High" : tp >= 0.35 ? "Medium" : "Low";
+          const color = TRAF_COLOR[level];
+          L.polyline([p0, p1], {
+            color,
+            weight: 14,
+            opacity: 0.15,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(routeLayer);
+          const line = L.polyline([p0, p1], {
+            color,
+            weight: 6,
+            opacity: 0.9,
+            lineCap: "round",
+            lineJoin: "round",
+            className: "seg-anim",
+          });
+          line.bindTooltip(
+            `<b style="color:${color}">${level} Traffic</b><br>Probability: ${(tp * 100).toFixed(1)}%`,
+            { sticky: true },
+          );
+          line.addTo(routeLayer);
+        });
+      }
+
+      function getDirectionIcon(step) {
+        const type = (step.maneuver?.type || "").toLowerCase();
+        const mod = (step.maneuver?.modifier || "").toLowerCase();
+
+        if (type.includes("arrive")) return "fa-flag-checkered";
+        if (type.includes("depart")) return "fa-play-circle";
+        if (type.includes("turn")) {
+          if (mod.includes("left")) return "fa-arrow-left";
+          if (mod.includes("right")) return "fa-arrow-right";
+          if (mod.includes("straight")) return "fa-arrow-up";
+          if (mod.includes("uturn")) return "fa-arrow-rotate-left";
+        }
+        if (type.includes("merge")) return "fa-arrow-right";
+        if (type.includes("ramp")) return "fa-arrow-right";
+        if (type.includes("fork")) return "fa-code-branch";
+        if (type.includes("roundabout")) return "fa-circle";
+        if (type.includes("rotary")) return "fa-circle";
+        return "fa-arrow-up";
+      }
+
+      function renderSteps(steps) {
+        const list = el("stepsList");
+        const count = el("stepCount");
+        list.innerHTML = "";
+        if (!steps || steps.length === 0) {
+          count.textContent = "0 steps";
+          return;
+        }
+        count.textContent = `${steps.length} step${steps.length !== 1 ? "s" : ""}`;
+        steps.forEach((step, i) => {
+          const li = document.createElement("li");
+          const name = step.name || "Unnamed street";
+          const distance = step.distance
+            ? (step.distance / 1000).toFixed(2)
+            : "0.00";
+          const icon = getDirectionIcon(step);
+          const instruction = step.instruction || name;
+          li.style.cssText = `
+            padding: 8px;
+            background: var(--sidebar-card);
+            border-radius: 6px;
+            border-left: 3px solid var(--iti-red);
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+          `;
+          li.innerHTML = `
+            <div style="margin-top: 1px; flex-shrink: 0; color: var(--iti-red); width: 14px; text-align: center;">
+              <i class="fas ${icon}" style="font-size: 10px;"></i>
+            </div>
+            <div style="flex: 1;">
+              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">
+                ${i + 1}. ${name}
+              </div>
+              <div style="font-size: 10px; color: var(--text-muted);">
+                ${distance} km
+              </div>
+            </div>
+          `;
+          list.appendChild(li);
+        });
+      }
+
+      function fmtDur(sec) {
+        if (!isFinite(sec) || sec < 0) return "—";
+
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = Math.floor(sec % 60);
+
+        if (h > 0) return `${h}h ${m}m`;
+        if (m > 0) return `${m}m`;
+        return `${s}s`;
+      }
+      function showRouteStats(results) {
+        const probs = results.map((r) => r.tp),
+          sProbs = results.map((r) => r.sp),
+          total = probs.length;
+        const high = probs.filter((p) => p >= 0.65).length,
+          med = probs.filter((p) => p >= 0.35 && p < 0.65).length,
+          low = probs.filter((p) => p < 0.35).length;
+        const avg = probs.reduce((a, b) => a + b, 0) / total,
+          avgS = sProbs.reduce((a, b) => a + b, 0) / total;
+        const pct = (n) => Math.round((n / total) * 100) + "%";
+        el("barHigh").style.width = pct(high);
+        el("pctHigh").textContent = pct(high);
+        el("barMed").style.width = pct(med);
+        el("pctMed").textContent = pct(med);
+        el("barLow").style.width = pct(low);
+        el("pctLow").textContent = pct(low);
+        el("routeAvg").textContent = (avg * 100).toFixed(1) + "%";
+        el("routeRiskAvg").textContent = (avgS * 100).toFixed(1) + "%";
+        el("routeDist").textContent =
+          S.routeDist >= 1000
+            ? (S.routeDist / 1000).toFixed(1) + " km"
+            : Math.round(S.routeDist) + " m";
+        const freeSec = S.routeDur || 0,
+          trafficMul = 1 + avg * 1.4,
+          realSec = freeSec * trafficMul;
+        const eta = new Date(Date.now() + realSec * 1000);
+        el("etaClock").textContent = eta.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        el("etaDur").textContent = fmtDur(realSec);
+        el("etaFree").textContent = fmtDur(freeSec);
+        const delaySec = realSec - freeSec,
+          dBadge = el("etaDelay");
+        if (delaySec < 60) {
+          dBadge.textContent = "On time";
+          dBadge.style.cssText =
+            "font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(16,185,129,.1);color:#10b981";
+        } else {
+          dBadge.textContent = `+${fmtDur(delaySec)} delay`;
+          dBadge.style.cssText = `font-size:10px;padding:2px 8px;border-radius:999px;background:${avg >= 0.65 ? "rgba(220,38,38,.1);color:var(--iti-red-light)" : avg >= 0.35 ? "rgba(245,158,11,.1);color:#f59e0b" : "var(--sidebar-card);color:var(--text-secondary)"}`;
+        }
+        const card = el("verdictCard"),
+          txt = el("verdictText");
+        if (high > total * 0.5 || avgS >= 0.6) {
+          txt.textContent =
+            "Heavy congestion and elevated accident risk — consider another route or time.";
+          txt.style.color = "#ef4444";
+          card.style.borderLeftColor = "#ef4444";
+        } else if (med >= low || avgS >= 0.35) {
+          txt.textContent = "Moderate traffic — some delays expected.";
+          txt.style.color = "#f59e0b";
+          card.style.borderLeftColor = "#f59e0b";
+        } else {
+          txt.textContent = "Route looks clear — good time to drive.";
+          txt.style.color = "#10b981";
+          card.style.borderLeftColor = "#10b981";
+        }
+        renderSteps(S.routeSteps);
+        el("routeResults").style.display = "flex";
+      }
+
+      // ────────── SINGLE POINT
+      async function makePrediction() {
+        const btn = el("predictBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Predicting...';
+        toast(`Predicting with: ${modelLabel()}`, "info");
+        const lat = parseFloat(el("latitude").value),
+          lng = parseFloat(el("longitude").value),
+          cond = getConditions();
+        let res = await getPointPred(lat, lng, cond);
+        if (nearClosure(lat, lng))
+          res = { ...res, traffic_probability: 0.95, traffic_level: "High" };
+        displayPointResult(res, cond, lat, lng);
+        addPointMarker(res, lat, lng);
+        S.predCount++;
+        syncCounters();
+        btn.innerHTML = '<i class="fas fa-bolt"></i> Predict';
+        btn.disabled = false;
+      }
+
+      function displayPointResult(res, cond, lat, lng) {
+        const tp = res.traffic_probability,
+          sp = res.accident_probability ?? 0;
+        const level = res.traffic_level;
+        const riskLevel =
+          res.risk_level ||
+          (sp >= 0.65 ? "High" : sp >= 0.35 ? "Medium" : "Low");
+        el("resType").textContent = cond.road_type;
+        el("resWidth").textContent = (res.details?.road_width ?? "—") + " m";
+        el("resSpeed").textContent = (res.details?.speed_limit ?? "—") + " mph";
+        el("trafLevel").textContent = level === "Medium" ? "Moderate" : level;
+        el("trafLevel").style.color = TRAF_COLOR[level];
+        el("trafProb").textContent = (tp * 100).toFixed(1) + "%";
+        el("gaugeTraffic").style.strokeDashoffset =
+          267 * (1 - Math.min(Math.max(tp, 0), 1));
+        el("riskLevel").textContent =
+          riskLevel === "Medium" ? "Moderate" : riskLevel;
+        el("riskLevel").style.color = TRAF_COLOR[riskLevel];
+        el("riskProb").textContent = (sp * 100).toFixed(1) + "%";
+        el("gaugeSeverity").style.strokeDashoffset =
+          267 * (1 - Math.min(Math.max(sp, 0), 1));
+        const mult = MODE_RISK[S.travelMode],
+          mr = Math.min(0.99, Math.max(tp, sp) * mult);
+        const mLvl = mr >= 0.65 ? "High" : mr >= 0.35 ? "Moderate" : "Low";
+        el("modalRisk").textContent = `${mLvl} (${(mr * 100).toFixed(0)}%)`;
+        el("modalRisk").style.color =
+          TRAF_COLOR[mr >= 0.65 ? "High" : mr >= 0.35 ? "Medium" : "Low"];
+        el("modalMode").textContent =
+          S.travelMode[0].toUpperCase() + S.travelMode.slice(1);
+        const isRush = [6, 7, 8, 9, 16, 17, 18, 19].includes(cond.hour),
+          isNight = cond.hour >= 21 || cond.hour <= 5;
+        const detail = [
+          ["Latitude", lat.toFixed(4)],
+          ["Longitude", lng.toFixed(4)],
+          ["Hour", String(cond.hour).padStart(2, "0") + ":00"],
+          ["Month", new Date().getMonth() + 1],
+          ["Rush hour", isRush ? "Yes" : "No"],
+          ["Night", isNight ? "Yes" : "No"],
+          ["Road", cond.road_type],
+          ["Width", (res.details?.road_width ?? "—") + " m"],
+          ["Speed", (res.details?.speed_limit ?? "—") + " mph"],
+          ["Weather", cond.weather_condition],
+          ["Visibility", cond.visibility + " mi"],
+          ["Precipitation", cond.precipitation + " in"],
+          ["Temperature", cond.temperature + " °F"],
+          ["Humidity", cond.humidity + " %"],
+          ["Wind", cond.wind_speed + " mph"],
+          ["Junction (sim)", S.signalsOn ? "On" : "Off"],
+        ];
+        const grid = el("detailGrid");
+        grid.innerHTML = "";
+        detail.forEach(([k, v]) => {
+          const row = document.createElement("div");
+          row.style.cssText =
+            "display:flex;justify-content:space-between;border-bottom:1px solid var(--sidebar-border);padding:3px 0";
+          row.innerHTML = `<span style="color:var(--text-muted)">${k}</span><span style="color:var(--text-primary);font-family:ui-monospace,monospace">${v}</span>`;
+          grid.appendChild(row);
+        });
+        ["gaugeCardTraffic"].forEach((id) => {
+          const g = el(id);
+          g.classList.remove("ring-glow-hi", "ring-glow-md", "ring-glow-lo");
+          g.classList.add(
+            level === "High"
+              ? "ring-glow-hi"
+              : level === "Medium"
+                ? "ring-glow-md"
+                : "ring-glow-lo",
+          );
+        });
+        ["gaugeCardSeverity"].forEach((id) => {
+          const g = el(id);
+          g.classList.remove("ring-glow-hi", "ring-glow-md", "ring-glow-lo");
+          g.classList.add(
+            riskLevel === "High"
+              ? "ring-glow-hi"
+              : riskLevel === "Medium"
+                ? "ring-glow-md"
+                : "ring-glow-lo",
+          );
+        });
+        const advice = el("adviceCard"),
+          aText = el("adviceText"),
+          worst = Math.max(tp, sp);
+        if (worst >= 0.65) {
+          aText.textContent =
+            "High traffic and elevated accident risk. Consider rescheduling.";
+          aText.style.color = "#ef4444";
+          advice.style.borderLeftColor = "#ef4444";
+          advice.style.background = "rgba(220,38,38,.06)";
+        } else if (worst >= 0.35) {
+          aText.textContent = "Moderate conditions — drive cautiously.";
+          aText.style.color = "#f59e0b";
+          advice.style.borderLeftColor = "#f59e0b";
+          advice.style.background = "rgba(245,158,11,.04)";
+        } else {
+          aText.textContent = "Clear and low-risk — good time to travel.";
+          aText.style.color = "#10b981";
+          advice.style.borderLeftColor = "#10b981";
+          advice.style.background = "rgba(16,185,129,.04)";
+        }
+        el("pointResults").style.display = "flex";
+      }
+
+      function addPointMarker(res, lat, lng) {
+        const tp = res.traffic_probability,
+          color = TRAF_COLOR[res.traffic_level];
+        L.circleMarker([lat, lng], {
           radius: 10,
           fillColor: color,
           color: "#fff",
           weight: 2,
-          fillOpacity: 0.8,
-        }).addTo(markers).bindPopup(`
-                <div class="text-sm font-sans">
-                    <b style="color:${color}">${result.risk_level} Risk</b><br>
-                    <b>Street:</b> ${document.getElementById("streetName").value || "N/A"}<br>
-                    <b>Width:</b> ${result.details.road_width}m | <b>Speed:</b> ${result.details.speed_limit}mph<br>
-                    <b>Accident Prob:</b> ${(prob * 100).toFixed(1)}%<br>
-                    <b>Traffic:</b> ${result.traffic_level}
-                </div>
-            `);
-
-        heatLayer.addLatLng([payload.latitude, payload.longitude, prob]);
+          fillOpacity: 0.9,
+        })
+          .addTo(markersLayer)
+          .bindPopup(
+            `<b style="color:${color}">${res.traffic_level} Traffic</b><br>Traffic: ${(tp * 100).toFixed(1)}%<br>Risk: ${((res.accident_probability || 0) * 100).toFixed(1)}%`,
+          );
+        heatLayer.addLatLng([
+          lat,
+          lng,
+          Math.max(tp, res.accident_probability || 0),
+        ]);
       }
 
-      // Simple Demo Simulation if API fails
-      function simulatePrediction(p) {
-        let prob = 0.2;
-        if ([6, 7, 8, 16, 17, 18].includes(p.hour)) prob += 0.2;
-        if (["Rain", "Snow", "Fog"].includes(p.weather_condition)) prob += 0.15;
-        if (p.visibility < 5) prob += 0.1;
-        if (p.road_type === "Local") prob += 0.05; // Local roads slightly riskier in demos
+      // ────────── API + SIMULATION
+      function getConditions() {
+        return {
+          visibility: parseFloat(el("visibility").value),
+          precipitation: parseFloat(el("precipitation").value) || 0,
+          temperature: parseFloat(el("temperature").value) || 70,
+          humidity: parseFloat(el("humidity").value) || 50,
+          wind_speed: parseFloat(el("wind_speed").value) || 5,
+          hour: parseInt(el("hour").value),
+          weather_condition: el("weather_condition").value,
+          road_type: el("road_type").value,
+          units: (el("units") && el("units").value) || "imperial",
+        };
+      }
 
-        let trafProb = 0.3;
-        if ([7, 8, 17, 18].includes(p.hour)) trafProb += 0.4;
-        if (["Rain", "Snow"].includes(p.weather_condition)) trafProb += 0.15;
-        if (p.road_type === "Internal") trafProb += 0.1;
-
-        const specs = {
+      // When the user flips imperial⇄metric, update visible unit labels in
+      // place. The numeric values stay as-is — the user is expected to retype
+      // them in the new unit. The API converts metric → imperial server-side
+      // so the model keeps using its trained units.
+      window.onUnitsChange = function () {
+        const isMetric = el("units") && el("units").value === "metric";
+        // Find the label nodes by text content and swap them.
+        const map = isMetric
+          ? {
+              "Visibility (mi)": "Visibility (km)",
+              "Precipitation (in)": "Precipitation (mm)",
+              "Temperature (°F)": "Temperature (°C)",
+              "Wind Speed (mph)": "Wind Speed (km/h)",
+            }
+          : {
+              "Visibility (km)": "Visibility (mi)",
+              "Precipitation (mm)": "Precipitation (in)",
+              "Temperature (°C)": "Temperature (°F)",
+              "Wind Speed (km/h)": "Wind Speed (mph)",
+            };
+        document.querySelectorAll("label").forEach((node) => {
+          const txt = node.textContent.trim();
+          if (map[txt]) node.textContent = map[txt];
+        });
+      };
+      async function getPointPred(lat, lng, cond) {
+        const body = { latitude: lat, longitude: lng, ...cond };
+        if (S.isApi) {
+          try {
+            const r = await fetchTimed(`${CFG.API}/predict`, 6000, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+            });
+            return await r.json();
+          } catch (_) {}
+        }
+        return simulate(body);
+      }
+      function simulate(p) {
+        let base = 0.25;
+        if ([7, 8, 9, 17, 18, 19].includes(p.hour)) base += 0.35;
+        else if ([12, 13].includes(p.hour)) base += 0.1;
+        if (["Rain", "Snow"].includes(p.weather_condition)) base += 0.25;
+        if (p.weather_condition === "Fog") base += 0.2;
+        if (p.road_type === "Internal") base += 0.15;
+        if (p.road_type === "Highway") base -= 0.05;
+        if (p.visibility < 3) base += 0.1;
+        const h =
+          Math.abs(
+            Math.sin(p.latitude * 12.9898 + p.longitude * 78.233) * 43758.5453,
+          ) % 1;
+        const tp = Math.max(0.02, Math.min(0.97, base + (h - 0.5) * 0.5));
+        const sp = Math.max(0.02, Math.min(0.95, tp * 0.7 + (h - 0.5) * 0.2));
+        const spec = {
           Highway: { w: 34, s: 70 },
           Local: { w: 22.5, s: 40 },
           Internal: { w: 18.5, s: 25 },
-        };
-        const spec = specs[p.road_type];
-
+        }[p.road_type] || { w: 22.5, s: 40 };
         return {
-          accident_probability: Math.min(prob, 0.95),
-          risk_level: prob >= 0.6 ? "High" : prob >= 0.3 ? "Medium" : "Low",
-          traffic_level: trafProb >= 0.5 ? "High" : "Low",
-          traffic_probability: Math.min(trafProb, 0.95),
+          traffic_probability: tp,
+          traffic_level: tp >= 0.65 ? "High" : tp >= 0.35 ? "Medium" : "Low",
+          accident_probability: sp,
+          risk_level: sp >= 0.65 ? "High" : sp >= 0.35 ? "Medium" : "Low",
           details: {
             road_width: spec.w,
             speed_limit: spec.s,
             road_type: p.road_type,
-            is_rush_hour: [6, 7, 8, 16, 17, 18].includes(p.hour),
           },
         };
       }
 
-      // UI Updates
-      document.getElementById("hour").addEventListener("input", (e) => {
-        document.getElementById("hourDisplay").textContent =
-          String(e.target.value).padStart(2, "0") + ":00";
-      });
+      // ────────── LIVE WEATHER
+      async function autoWeather() {
+        const lat = parseFloat(el("latitude").value),
+          lng = parseFloat(el("longitude").value);
+        if (!isFinite(lat) || !isFinite(lng)) {
+          toast("Set a location first", "warn");
+          return;
+        }
+        const btn = el("autoWxBtn");
+        btn.innerHTML = "...";
+        btn.disabled = true;
 
+        let data = null;
+        let weatherSource = "API"; // For toast message
+
+        try {
+          // Try Backend Proxy First — works even when models aren't loaded.
+          // Don't gate on S.isApi: the /weather endpoint is independent of models.
+          try {
+            const proxyUrl = `${CFG.API}/weather?lat=${lat}&lng=${lng}`;
+            const resp = await fetchTimed(proxyUrl, 6000);
+            const j = await resp.json();
+            if (j && j.current) {
+              data = j;
+              weatherSource = "Backend Proxy";
+            }
+          } catch (err) {
+            console.warn(
+              "Weather proxy failed, trying direct fallback...",
+              err,
+            );
+          }
+
+          // Fallback to direct Open-Meteo call if proxy failed or API is offline
+          if (!data || data.error || !data.current) {
+            try {
+              const url = `${CFG.WX}?latitude=${lat}&longitude=${lng}&current=temperature_2m,relative_humidity_2m,precipitation,visibility,weather_code,wind_speed_10m`;
+              const resp = await fetchTimed(url, 7000);
+              const j = await resp.json();
+              if (j && j.current) {
+                data = j;
+                weatherSource = "Open-Meteo";
+              }
+            } catch (directApiErr) {
+              console.warn(
+                "Direct Open-Meteo API failed, falling back to simulation...",
+                directApiErr,
+              );
+            }
+          }
+
+          // Fallback to client-side simulation if all API calls failed
+          if (!data || !data.current) {
+            data = { current: simulateWeather(lat, lng) };
+            weatherSource = "Simulation";
+          }
+
+          const c = data.current; // 'c' should now always be available
+          if (!c)
+            throw new Error("No weather data available after all attempts.");
+
+          el("precipitation").value = (c.precipitation || 0).toFixed(2);
+          el("visibility").value = c.visibility
+            ? Math.min(20, +(c.visibility / 1609.34).toFixed(1))
+            : 10;
+          el("temperature").value = ((c.temperature_2m * 9) / 5 + 32).toFixed(
+            0,
+          );
+          el("humidity").value = c.relative_humidity_2m ?? 50;
+          el("wind_speed").value = (c.wind_speed_10m || 5).toFixed(0);
+          el("weather_condition").value = wmoToCondition(c.weather_code);
+          toast(
+            `Weather: ${el("weather_condition").value}, ${el("temperature").value}°F`,
+            "success", // Always success if we have data, even simulated
+          );
+        } catch (e) {
+          toast("Weather service unavailable", "warn");
+          console.error("Weather API error:", e);
+        }
+        btn.innerHTML =
+          '<i class="fas fa-cloud-sun" style="margin-right:3px"></i> Auto';
+        btn.disabled = false;
+      }
+      function fetchTimed(url, timeoutMs = 7000, opts = {}) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), timeoutMs);
+        return fetch(url, { ...opts, signal: ctrl.signal }).finally(() =>
+          clearTimeout(t),
+        );
+      }
+      function haversine(a, b) {
+        const R = 6371000;
+        const toRad = (d) => (d * Math.PI) / 180;
+        const dLat = toRad(b.lat - a.lat);
+        const dLng = toRad(b.lng - a.lng);
+        const la1 = toRad(a.lat),
+          la2 = toRad(b.lat);
+        const h =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(la1) * Math.cos(la2) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+      }
+      function lerpCoords(a, b, n) {
+        const out = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          out.push([a.lng + (b.lng - a.lng) * t, a.lat + (b.lat - a.lat) * t]);
+        }
+        return out;
+      }
+      function sampleCoords(coords, n) {
+        if (!coords || coords.length === 0) return [];
+        if (coords.length <= n) return coords.slice();
+        const out = [];
+        const step = (coords.length - 1) / (n - 1);
+        for (let i = 0; i < n; i++) {
+          out.push(coords[Math.round(i * step)]);
+        }
+        return out;
+      }
+      function simulateWeather(lat, lng) {
+        const seed =
+          Math.abs(Math.sin(lat * 12.9898 + lng * 78.233) * 43758.5453) % 1;
+        const temperature_2m = 20 + seed * 15;
+        const relative_humidity_2m = 40 + seed * 50;
+        const precipitation = seed > 0.7 ? seed * 2 : 0;
+        const visibility = 5000 + seed * 5000;
+        const wind_speed_10m = 2 + seed * 8;
+        let weather_code = 0;
+        if (precipitation > 1) weather_code = 63;
+        else if (seed > 0.6) weather_code = 3;
+        else if (seed > 0.4) weather_code = 1;
+        else weather_code = 0;
+        return {
+          temperature_2m,
+          relative_humidity_2m,
+          precipitation,
+          visibility,
+          wind_speed_10m,
+          weather_code,
+        };
+      }
+      function wmoToCondition(c) {
+        if (c == null) return "Clear";
+        if ([0].includes(c)) return "Clear";
+        if ([1, 2, 3].includes(c)) return "Cloudy";
+        if ([45, 48].includes(c)) return "Fog";
+        if (
+          [
+            51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99,
+          ].includes(c)
+        )
+          return "Rain";
+        if ([71, 73, 75, 77, 85, 86].includes(c)) return "Snow";
+        return "Cloudy";
+      }
+
+      // ────────── HEX GRID
+      function clearGrid() {
+        S.hexLayer.clearLayers();
+        el("hexStats").style.display = "none";
+        el("hexProgress").style.display = "none";
+      }
+      async function buildHexGrid() {
+        clearGrid();
+        toast(`Building grid with: ${modelLabel()}`, "info");
+        const stepDeg = parseInt(el("hexRes").value) / 10000,
+          b = map.getBounds();
+        const south = b.getSouth(),
+          north = b.getNorth(),
+          west = b.getWest(),
+          east = b.getEast(),
+          cond = getConditions();
+        const cells = [];
+        const hexW = stepDeg * Math.sqrt(3),
+          hexH = stepDeg * 1.5;
+        let row = 0;
+        for (let lat = south; lat <= north; lat += hexH, row++) {
+          const offset = (row % 2) * (hexW / 2);
+          for (let lng = west + offset; lng <= east; lng += hexW)
+            cells.push([lat, lng]);
+        }
+        if (!cells.length) {
+          toast("Zoom and retry", "warn");
+          return;
+        }
+        if (cells.length > 600) {
+          toast(`${cells.length} cells — increase resolution slider`, "warn");
+          return;
+        }
+        el("hexProgress").style.display = "";
+        el("hexBtn").disabled = true;
+        let done = 0;
+        const probs = new Array(cells.length);
+        await Promise.all(
+          cells.map(([lat, lng], i) =>
+            getPointPred(lat, lng, cond).then((r) => {
+              probs[i] = r.traffic_probability;
+              done++;
+              el("hexProgress").textContent =
+                `Predicting ${done}/${cells.length}...`;
+            }),
+          ),
+        );
+        el("hexProgress").style.display = "none";
+        el("hexBtn").disabled = false;
+        cells.forEach(([lat, lng], i) => {
+          const tp = probs[i];
+          const level = tp >= 0.65 ? "High" : tp >= 0.35 ? "Medium" : "Low";
+          const color = TRAF_COLOR[level];
+          L.polygon(hexVertices(lat, lng, stepDeg), {
+            color,
+            fillColor: color,
+            weight: 1,
+            fillOpacity: 0.35,
+            opacity: 0.7,
+          })
+            .addTo(S.hexLayer)
+            .bindTooltip(`${level} (${(tp * 100).toFixed(0)}%)`);
+        });
+        const high = probs.filter((p) => p >= 0.65).length,
+          avg = probs.reduce((a, b) => a + b, 0) / probs.length;
+        el("hexTotal").textContent = cells.length;
+        el("hexHigh").textContent = high;
+        el("hexAvg").textContent = (avg * 100).toFixed(0) + "%";
+        el("hexStats").style.display = "grid";
+        S.predCount += cells.length;
+        syncCounters();
+        toast(`Built ${cells.length}-cell grid`, "success");
+      }
+      function hexVertices(lat, lng, R) {
+        const v = [];
+        for (let i = 0; i < 6; i++) {
+          const a = Math.PI / 6 + (i * Math.PI) / 3;
+          v.push([
+            lat + R * Math.sin(a),
+            lng + (R * Math.cos(a)) / Math.cos((lat * Math.PI) / 180),
+          ]);
+        }
+        return v;
+      }
+
+      // ────────── HEATMAP / MARKERS
+      function toggleHeatmap() {
+        if (el("heatToggle").checked) {
+          if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
+          heatLayer.redraw && heatLayer.redraw();
+        } else {
+          if (map.hasLayer(heatLayer)) map.removeLayer(heatLayer);
+        }
+      }
+      function clearMarkers() {
+        markersLayer.clearLayers();
+        whatIfLayer.clearLayers();
+        S.closures = [];
+        S.signals = [];
+        syncWhatIfBadge();
+        heatLayer.setLatLngs([]);
+        toast("Markers cleared", "info");
+      }
+
+      // ────────── GEOCODING
+      async function reverseGeocode(lat, lng, sId, aId) {
+        el(sId).textContent = "Loading...";
+        try {
+          const data = await fetchTimed(
+            `${CFG.NOM}/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=en`,
+            6000,
+            { headers: { "User-Agent": "TrafficIQ/1.0" } },
+          ).then((r) => r.json());
+          el(sId).textContent =
+            data.address?.road || data.address?.suburb || "Unknown road";
+          el(aId).textContent = data.address?.city || data.address?.state || "";
+        } catch (_) {
+          el(sId).textContent = "Geocoding unavailable";
+          el(aId).textContent = "";
+        }
+      }
+      async function searchAddress() {
+        const q = el("searchInput").value.trim();
+        if (!q) return;
+        const drop = el("searchDropdown");
+        drop.innerHTML =
+          '<div style="padding:10px 12px;font-size:11px;color:var(--text-muted)">Searching...</div>';
+        drop.style.display = "";
+        try {
+          const data = await fetchTimed(
+            `${CFG.NOM}/search?q=${encodeURIComponent(q)}&format=json&limit=5&accept-language=en`,
+            7000,
+            { headers: { "User-Agent": "TrafficIQ/1.0" } },
+          ).then((r) => r.json());
+          drop.innerHTML = "";
+          if (!data.length) {
+            drop.innerHTML =
+              '<div style="padding:10px 12px;font-size:11px;color:var(--text-muted)">No results</div>';
+            return;
+          }
+          data.forEach((item) => {
+            const btn = document.createElement("button");
+            btn.style.cssText =
+              "width:100%;text-align:left;padding:8px 12px;font-size:11px;color:var(--text-secondary);cursor:pointer;border:none;border-bottom:1px solid var(--sidebar-border);font-family:inherit;transition:background .15s";
+            btn.textContent = item.display_name;
+            btn.onmouseover = () =>
+              (btn.style.background = "var(--iti-red-subtle)");
+            btn.onmouseout = () => (btn.style.background = "none");
+            btn.onclick = () => {
+              const lat = parseFloat(item.lat),
+                lng = parseFloat(item.lon);
+              map.setView([lat, lng], 15);
+              el("latitude").value = lat.toFixed(4);
+              el("longitude").value = lng.toFixed(4);
+              el("searchInput").value = item.display_name.split(",")[0];
+              reverseGeocode(lat, lng, "ptStreet", "ptArea");
+              drop.style.display = "none";
+            };
+            drop.appendChild(btn);
+          });
+        } catch (_) {
+          drop.innerHTML =
+            '<div style="padding:10px 12px;font-size:11px;color:var(--text-muted)">Search unavailable</div>';
+        }
+      }
+
+      // ────────── TIME-LAPSE
+      function toggleTimeLapse() {
+        if (S.isPlaying) {
+          clearInterval(S.playTimer);
+          S.isPlaying = false;
+          el("playBtn").innerHTML = '<i class="fas fa-play"></i>';
+        } else {
+          S.isPlaying = true;
+          el("playBtn").innerHTML = '<i class="fas fa-pause"></i>';
+          S.playTimer = setInterval(() => {
+            const s = el("hour"),
+              n = (parseInt(s.value) + 1) % 24;
+            s.value = n;
+            el("hourDisplay").textContent = String(n).padStart(2, "0") + ":00";
+            updateRushBadge(n);
+            if (S.mode === "route" && S.rStart && S.rEnd) analyzeRoute();
+          }, 1800);
+        }
+      }
+
+      // ────────── UI HELPERS
+      function showProgress(label) {
+        el("progLabel").textContent = label;
+        el("progPct").textContent = "0%";
+        el("progBar").style.width = "0%";
+        el("routeProgress").style.display = "";
+      }
+      function updateProgress(done, total) {
+        const p = Math.round((done / total) * 100);
+        el("progBar").style.width = p + "%";
+        el("progPct").textContent = p + "%";
+        el("progLabel").textContent = `Predicting ${done}/${total}`;
+      }
+      function hideProgress() {
+        el("routeProgress").style.display = "none";
+      }
+      function showOverlay(t, s) {
+        el("overlayTitle").textContent = t;
+        el("overlaySub").textContent = s;
+        el("mapOverlay").style.display = "flex";
+      }
+      function hideOverlay() {
+        el("mapOverlay").style.display = "none";
+      }
+      function toast(msg, type = "info") {
+        const pal = {
+          success:
+            "background:#fff;border:1px solid rgba(16,185,129,.3);color:#16A34A",
+          warn: "background:#fff;border:1px solid rgba(245,158,11,.3);color:#d97706",
+          error:
+            "background:#fff;border:1px solid rgba(220,38,38,.3);color:#DC2626",
+          info: "background:#fff;border:1px solid #E5E5E5;color:#525252",
+        };
+        const t = document.createElement("div");
+        t.className = "toast-in pointer-events-auto";
+        t.style.cssText = `display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;font-size:12px;font-weight:500;box-shadow:0 6px 24px rgba(0,0,0,.08);font-family:Inter,sans-serif;${pal[type] || pal.info}`;
+        const icons = {
+          success: "fa-check-circle",
+          warn: "fa-exclamation-circle",
+          error: "fa-times-circle",
+          info: "fa-info-circle",
+        };
+        t.innerHTML = `<i class="fas ${icons[type] || icons.info}" style="font-size:13px"></i> ${msg}`;
+        el("toastBox").appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+      }
+      function setMapHint(t) {
+        const h = el("mapHint");
+        h.innerHTML = t;
+        h.style.display = t ? "" : "none";
+      }
+      function updateRushBadge(h) {
+        el("rushBadge").classList.toggle(
+          "hidden",
+          ![7, 8, 9, 17, 18, 19].includes(h),
+        );
+      }
+      function syncCounters() {
+        el("predCounter").textContent = S.predCount;
+        el("hdrCount").textContent = S.predCount;
+      }
+      function copyCoords() {
+        const v = `${el("latitude").value}, ${el("longitude").value}`;
+        navigator.clipboard
+          ?.writeText(v)
+          .then(() => toast("Copied", "success"))
+          .catch(() => toast("Copy failed", "error"));
+      }
+
+      async function checkApi() {
+        try {
+          const data = await fetchTimed(`${CFG.API}/`, 3000).then((r) =>
+            r.json(),
+          );
+          S.isApi = !!data.traffic_loaded;
+          S.hasSeverity = !!data.severity_loaded;
+          el("statusDot").style.background =
+            S.isApi && S.hasSeverity
+              ? "#10b981"
+              : S.isApi
+                ? "#f59e0b"
+                : "#ef4444";
+          el("statusText").textContent =
+            S.isApi && S.hasSeverity
+              ? "XGBoost · Traffic + Severity"
+              : S.isApi
+                ? "XGBoost · Traffic only"
+                : "Simulation";
+          if (S.isApi) toast(`${el("statusText").textContent}`, "success");
+        } catch (_) {
+          el("statusDot").style.background = "#ef4444";
+          el("statusText").textContent = "API Offline";
+        }
+      }
+
+      function syncModeBtns() {
+        document.querySelectorAll(".modeBtn").forEach((b) => {
+          const on = b.dataset.mode === S.travelMode;
+          if (on) {
+            b.style.cssText =
+              "padding:7px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;background:var(--gradient-primary);color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px";
+          } else {
+            b.style.cssText =
+              "padding:7px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;background:var(--sidebar-card);color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:4px;transition:color .2s";
+          }
+        });
+      }
+      function syncStrategyBtns() {
+        document.querySelectorAll(".strategyBtn").forEach((b) => {
+          const on = b.dataset.strategy === S.strategy;
+          if (on) {
+            b.style.cssText =
+              "padding:7px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;background:var(--gradient-primary);color:#fff;font-weight:600;display:flex;align-items:center;justify-content:center;gap:4px";
+          } else {
+            b.style.cssText =
+              "padding:7px;font-size:11px;border-radius:6px;border:none;cursor:pointer;font-family:inherit;background:var(--sidebar-card);color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:4px;transition:color .2s";
+          }
+        });
+      }
+
+      el("hour").addEventListener("input", (e) => {
+        const h = parseInt(e.target.value);
+        el("hourDisplay").textContent = String(h).padStart(2, "0") + ":00";
+        updateRushBadge(h);
+      });
+      el("segments").addEventListener("input", (e) => {
+        el("segDisplay").textContent = e.target.value;
+      });
+      el("hexRes").addEventListener("input", (e) => {
+        el("hexResDisplay").textContent = e.target.value;
+      });
+      el("searchInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") searchAddress();
+        if (e.key === "Escape") el("searchDropdown").style.display = "none";
+      });
+      document.addEventListener("click", (e) => {
+        if (e.target.matches(".modeBtn")) {
+          S.travelMode = e.target.dataset.mode;
+          syncModeBtns();
+        }
+        if (e.target.matches(".strategyBtn")) {
+          S.strategy = e.target.dataset.strategy;
+          syncStrategyBtns();
+        }
+        if (
+          !e.target.closest("#searchInput") &&
+          !e.target.closest("#searchDropdown")
+        )
+          el("searchDropdown").style.display = "none";
+      });
+      document.addEventListener("keydown", (e) => {
+        if (["INPUT", "SELECT"].includes(document.activeElement.tagName))
+          return;
+        if (e.key === "Enter" && S.mode === "predict") makePrediction();
+        if (e.key === "Escape" && S.mode === "route") resetRoute();
+        if (e.key === " ") {
+          e.preventDefault();
+          toggleTimeLapse();
+        }
+      });
       setInterval(() => {
-        document.getElementById("clock").textContent =
-          new Date().toLocaleTimeString();
+        el("clock").textContent = new Date().toLocaleTimeString();
       }, 1000);
 
-      // Init
       document.addEventListener("DOMContentLoaded", () => {
+        el("copyYear").textContent = new Date().getFullYear();
+        // Defensive: ensure no <button> defaults to type="submit" and reloads
+        document.querySelectorAll("button:not([type])").forEach((b) => {
+          b.type = "button";
+        });
         initMap();
         checkApi();
-        setTimeout(
-          () => (document.getElementById("clickHint").style.opacity = "0"),
-          6000,
-        );
+        reverseGeocode(30.0444, 31.2357, "ptStreet", "ptArea");
+        updateRushBadge(8);
+        syncModeBtns();
+        syncStrategyBtns();
+        initSidebarResizer();
+        // Auto-close mobile drawer when a tab is picked
+        ["tabPoint", "tabRoute", "tabGrid"].forEach((id) => {
+          el(id).addEventListener("click", () => {
+            if (window.matchMedia("(max-width: 768px)").matches)
+              toggleSidebar(false);
+          });
+        });
       });
     </script>
   </body>

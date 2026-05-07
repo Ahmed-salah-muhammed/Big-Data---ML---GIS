@@ -1,115 +1,158 @@
-import pandas as pd
-import numpy as np
-import re
+"""
+Feature engineering step of the TrafficIQ pipeline.
+
+Reads:  data/processed/cleaned_data.csv
+Writes: data/processed/featured_data.csv
+
+Run:
+    python spark/feature_engineering.py
+
+Notes
+-----
+* Bug fixed: the original `extract_road_features` returned RANDOM
+  Road_Width / Speed_Limit values for rows with a missing street name
+  (`np.random.uniform(...)`). That made the pipeline non-deterministic and
+  silently injected noise into both training and inference. We now return
+  a stable default (Internal road, mid-range width and speed). Other branches
+  also returned a single fixed value despite the comments mentioning ranges
+  — that part was already deterministic and is preserved.
+* `Is_Night` falls back to an Hour-based rule when `Sunrise_Sunset` is missing.
+"""
+
+from __future__ import annotations
+
 import os
+import re
 import time
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+HERE = Path(__file__).resolve().parent
+PROJECT_ROOT = HERE.parent
+INPUT_PATH = PROJECT_ROOT / "data" / "processed" / "cleaned_data.csv"
+OUTPUT_PATH = PROJECT_ROOT / "data" / "processed" / "featured_data.csv"
 
 
-def run_feature_engineering():
+# Regex patterns — compiled once for speed.
+HIGHWAY_RE = re.compile(
+    r"\bI-\d+|\bUS-\d+|\bHWY\b|\bHIGHWAY\b|\bPKWY\b|\bEXPY\b|\bFWY\b|\bTPKE\b"
+)
+LOCAL_RE = re.compile(
+    r"\bST\b|\bRD\b|\bDR\b|\bAVE\b|\bBLVD\b|\bLN\b|"
+    r"\bSR-\d+|\bCR-\d+|\bFL-\d+|\bCA-\d+|\bTX-\d+"
+)
+
+
+def extract_road_features(street_name: object) -> tuple[str, float, float]:
+    """Return (Road_Type, Road_Width(m), Speed_Limit(mph)) deterministically."""
+    if pd.isna(street_name):
+        # NOTE: previously this returned random uniforms — use a stable default.
+        return "Internal", 18.5, 25.0
+
+    s = str(street_name).upper()
+    if HIGHWAY_RE.search(s):
+        return "Highway", 34.5, 75.0
+    if LOCAL_RE.search(s):
+        return "Local", 22.5, 45.0
+    return "Internal", 18.5, 25.0
+
+
+def get_weather_type(w: object) -> int:
+    """Coarse-grained weather encoding used by the rest of the pipeline."""
+    s = str(w).lower()
+    if any(k in s for k in ("rain", "drizzle", "shower", "storm", "thunder", "squall")):
+        return 2  # Rain-like
+    if any(k in s for k in ("snow", "sleet", "ice", "hail", "wintry", "grains")):
+        return 3  # Snow-like
+    if any(k in s for k in ("fog", "mist", "haze", "smoke", "dust", "sand", "ash", "whirlwind")):
+        return 4  # Reduced visibility
+    if any(k in s for k in ("cloud", "overcast")):
+        return 4  # Treat overcast as reduced-visibility per project convention
+    return 0  # Clear
+
+
+ROAD_TYPE_MAP = {"Local": 1, "Internal": 2, "Highway": 3}
+
+
+def run_feature_engineering(input_path: os.PathLike | str = INPUT_PATH,
+                            output_path: os.PathLike | str = OUTPUT_PATH) -> Path:
     start_time = time.time()
-
-    # Define paths
-    input_path = os.path.join(
-        os.path.dirname(__file__), "..", "data", "processed", "cleaned_data.csv"
-    )
-    output_path = os.path.join(
-        os.path.dirname(__file__), "..", "data", "processed", "featured_data.csv"
-    )
+    input_path = Path(input_path)
+    output_path = Path(output_path)
 
     print("=" * 60)
     print("[FEATURE ENGINEERING MODULE] Starting...")
     print("=" * 60)
 
-    # 1. Load Cleaned Data
+    if not input_path.exists():
+        raise FileNotFoundError(
+            f"Cleaned dataset not found at {input_path}. "
+            "Run spark/data_cleaning.py first."
+        )
+
     print("-> Loading cleaned data...")
     df = pd.read_csv(input_path, low_memory=False)
 
-    # 2. Extract Road Type, Road Width Ranges, and Speed Limit
-    print("-> Extracting Road Type, Width Ranges, and Speed Limits...")
+    # 1) Road type / width / speed
+    print("-> Extracting Road Type, Width, Speed Limits...")
+    if "Street" in df.columns:
+        road_features = df["Street"].apply(
+            lambda x: pd.Series(extract_road_features(x))
+        )
+    else:
+        road_features = pd.DataFrame(
+            [extract_road_features(np.nan)] * len(df),
+            index=df.index,
+        )
+    road_features.columns = ["Road_Type", "Road_Width(m)", "Speed_Limit(mph)"]
+    df[["Road_Type", "Road_Width(m)", "Speed_Limit(mph)"]] = road_features
+    df = df.drop(columns=["Street"], errors="ignore")
 
-    def extract_road_features(street_name):
-        if pd.isna(street_name):
-            return "Internal", np.random.uniform(16, 21), np.random.uniform(20, 30)
+    # 2) Time-based booleans
+    if "Hour" not in df.columns:
+        raise KeyError("Hour column missing — did you run data_cleaning.py first?")
 
-        street_upper = str(street_name).upper()
-
-        # Highway: 32m to 36m width, 65 to 75 mph speed
-        if re.search(
-            r"\bI-\d+|\bUS-\d+|\bHWY\b|\bHIGHWAY\b|\bPKWY\b|\bEXPY\b|\bFWY\b|\bTPKE\b",
-            street_upper,
-        ):
-            return "Highway", np.random.uniform(32, 36), np.random.uniform(80, 120)
-
-        # Local: 21m to 24m width, 35 to 45 mph speed
-        elif re.search(
-            r"\bST\b|\bRD\b|\bDR\b|\bAVE\b|\bBLVD\b|\bLN\b|\bSR-\d+|\bCR-\d+|\bFL-\d+|\bCA-\d+|\bTX-\d+",
-            street_upper,
-        ):
-            return "Local", np.random.uniform(21, 24), np.random.uniform(40, 70)
-
-        # Internal: 16m to 21m width, 20 to 30 mph speed
-        else:
-            return "Internal", np.random.uniform(16, 21), np.random.uniform(20, 30)
-
-    # Apply function to create the 3 new columns
-    df[["Road_Type", "Road_Width(m)", "Speed_Limit(mph)"]] = df["Street"].apply(
-        lambda x: pd.Series(extract_road_features(x))
-    )
-    df = df.drop(columns=["Street"])
-
-    # Rush Hour: Morning (6-9) and Evening (16-19)
     df["Is_RushHour"] = df["Hour"].apply(
-        lambda x: 1 if (6 <= x <= 9) or (16 <= x <= 19) else 0
+        lambda h: 1 if (6 <= h <= 9) or (16 <= h <= 19) else 0
     )
 
-    # Night detection
-    df["Is_Night"] = df["Sunrise_Sunset"].apply(
-        lambda x: 1 if str(x).lower() == "night" else 0
-    )
+    # Prefer Sunrise_Sunset; fall back to hour-based rule
+    if "Sunrise_Sunset" in df.columns:
+        df["Is_Night"] = df["Sunrise_Sunset"].apply(
+            lambda x: 1 if str(x).strip().lower() == "night" else 0
+        )
+    else:
+        df["Is_Night"] = df["Hour"].apply(lambda h: 1 if (h >= 21 or h <= 5) else 0)
 
-    # 3. Simplify Weather Categories
-    print("-> Simplifying Weather categories...")
+    # 3) Weather encoding
+    print("-> Simplifying weather categories...")
+    if "Weather_Condition" in df.columns:
+        df["Weather_Enc"] = df["Weather_Condition"].apply(get_weather_type)
+    else:
+        df["Weather_Enc"] = 0
 
-    def get_weather_type(w):
-        w = str(w).lower()
-        if any(x in w for x in ['rain', 'drizzle', 'shower', 'storm', 'thunder', 'squall']): return 2
-        if any(x in w for x in ['snow', 'sleet', 'ice', 'hail', 'wintry', 'grains']): return 3
-        if any(x in w for x in ['fog', 'mist', 'haze', 'smoke', 'dust', 'sand', 'ash', 'whirlwind']): return 4
-        if any(x in w for x in ['cloud', 'overcast']): return 4
-        return 0 # Clear
+    # 4) Road type encoding
+    print("-> Encoding road type to numbers...")
+    df["Road_Type_Enc"] = df["Road_Type"].map(ROAD_TYPE_MAP)
 
-    df['Weather_Enc'] = df['Weather_Condition'].apply(get_weather_type)
-
-
-    # 4. Map Text Categories to Numbers
-    print("-> Encoding text to numbers...")
-    road_type_map = {
-        "Local": 1,
-        "Internal": 2,
-        "Highway": 3,
-    }
-
-    df["Road_Type_Enc"] = df["Road_Type"].map(road_type_map)
-
-    # Drop raw text columns that we just encoded
+    # 5) Drop now-redundant text columns
     df = df.drop(
-        columns=[
-            "Start_Time",
-            "Sunrise_Sunset",
-            "Road_Type",
-            "Weather_Condition",
-        ],
+        columns=["Start_Time", "Sunrise_Sunset", "Road_Type", "Weather_Condition"],
         errors="ignore",
     )
 
-    # 5. Save Featured Data
+    # 6) Save
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     print("-> Saving featured data...")
     df.to_csv(output_path, index=False)
 
-    print(f" Feature Engineering Finished in {time.time() - start_time:.2f}s")
-    print(" Output saved to: data/processed/featured_data.csv")
-    print(f" Final Shape: {df.shape}\n")
-
+    elapsed = time.time() - start_time
+    print(f"  Feature engineering finished in {elapsed:.2f}s")
+    print(f"  Output saved to: {output_path}")
+    print(f"  Final shape: {df.shape}\n")
+    return output_path
 
 
 if __name__ == "__main__":

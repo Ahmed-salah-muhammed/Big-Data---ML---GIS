@@ -8,6 +8,7 @@ lib/
 # Ignore Python cache files
 __pycache__/
 *.pyc
+data/processed/
 
 # Ignore your output data
 # (Adjust the folder name/extensions to match your project)
@@ -16,3 +17,5 @@ processed/
 *.csv
 raw/
 *.csv
+*.pkl
+models/*.pkl
