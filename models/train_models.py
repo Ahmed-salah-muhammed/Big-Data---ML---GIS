@@ -147,7 +147,7 @@ def _train_one(X: pd.DataFrame, y: pd.Series, name: str):
 
     # Keep DataFrame structure so feature names propagate end-to-end.
     scaler: StandardScaler = StandardScaler()
-    scaler.set_output(transform="pandas")   
+    scaler.set_output(transform="pandas")
     X_tr_s = scaler.fit_transform(X_tr)
     X_te_s = scaler.transform(X_te)
 
